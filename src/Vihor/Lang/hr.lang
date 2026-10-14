@@ -66,7 +66,7 @@ msg.no_mac=MAC adresa ovog uređaja nije poznata, Wake-on-LAN nije moguć.
 msg.wol_sent=Wake-on-LAN paket poslan na {0}.
 msg.shutdown_confirm=Isključiti {1} ({0})?\n\nPotrebna su administratorska prava na udaljenom računalu. Isključivanje počinje za 60 sekundi i može se otkazati.
 
-vendor.random=(nasumična MAC)
+vendor.random=(lokalna/virtualna MAC)
 
 about.version=Verzija {0}
 about.tagline=Brz, besplatan mrežni skener otvorenog koda.

@@ -305,6 +305,25 @@ namespace Vihor
                 if (e.Control && e.KeyCode == Keys.A) { foreach (ListViewItem i in list.Items) i.Selected = true; e.Handled = true; }
             };
             list.ContextMenuStrip = ctx;
+            list.ClientSizeChanged += (s, e) => FitColumns();
+            list.ColumnWidthChanged += (s, e) => { if (e.ColumnIndex != ColServices) FitColumns(); };
+        }
+
+        private bool fitting;
+
+        /// <summary>The Services column takes the remaining width so long service lists are readable.</summary>
+        private void FitColumns()
+        {
+            if (fitting || list.Columns.Count <= ColPing) return;
+            fitting = true;
+            try
+            {
+                int others = 0;
+                for (int i = 0; i < list.Columns.Count; i++) if (i != ColServices) others += list.Columns[i].Width;
+                int w = list.ClientSize.Width - others - 2;
+                list.Columns[ColServices].Width = Math.Max(LogicalToDeviceUnits(120), w);
+            }
+            finally { fitting = false; }
         }
 
         private void BuildContextMenu()

@@ -67,7 +67,7 @@ msg.no_mac=The MAC address of this device is unknown, Wake-on-LAN is not possibl
 msg.wol_sent=Wake-on-LAN packet sent to {0}.
 msg.shutdown_confirm=Shut down {1} ({0})?\n\nThis requires administrator rights on the remote computer. Shutdown starts in 60 seconds and can be aborted.
 
-vendor.random=(randomized MAC)
+vendor.random=(locally administered MAC)
 
 about.version=Version {0}
 about.tagline=Fast, free and open-source network scanner.

@@ -12,7 +12,7 @@ namespace Vihor.Scanning
     internal sealed class ScanOptions
     {
         public int PingTimeoutMs = 700;
-        public int Threads = 128;
+        public int Threads = 256;
         public bool ScanPorts = true;
         public int PortTimeoutMs = 400;
         public int NameTimeoutMs = 1500;
@@ -99,6 +99,14 @@ namespace Vihor.Scanning
                 IsSelf = self != null,
                 IsGateway = gateways.Contains(ip),
             };
+
+            // Sleepy devices (ESP, phones) often miss the first ARP request: after a successful ping
+            // the OS cache usually has the entry, so ask again and fall back to the ARP table.
+            if (host.Mac == null && local && self == null)
+            {
+                host.Mac = await Task.Run(() => Native.ResolveMac(addr)).ConfigureAwait(false);
+                if (host.Mac == null && Native.ReadArpCache().TryGetValue(ip, out var cached)) host.Mac = cached;
+            }
 
             var dnsTask = ReverseDnsAsync(addr);
             var nbTask = NetBios.QueryAsync(addr, opt.NameTimeoutMs);

@@ -15,7 +15,7 @@ namespace Vihor
         public static string Language = "en";
         public static string LastRange = "";
         public static int PingTimeoutMs = 700;
-        public static int Threads = 128;
+        public static int Threads = 256;
         public static bool ScanPorts = true;
         public static int WindowWidth = 1100;
         public static int WindowHeight = 650;
@@ -51,8 +51,6 @@ namespace Vihor
                 sb.AppendLine("[Settings]");
                 sb.AppendLine("Language=" + Language);
                 sb.AppendLine("LastRange=" + LastRange);
-                sb.AppendLine("PingTimeoutMs=" + PingTimeoutMs);
-                sb.AppendLine("Threads=" + Threads);
                 sb.AppendLine("ScanPorts=" + (ScanPorts ? 1 : 0));
                 sb.AppendLine("WindowWidth=" + WindowWidth);
                 sb.AppendLine("WindowHeight=" + WindowHeight);
