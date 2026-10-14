@@ -13,10 +13,44 @@ namespace Vihor.Scanning
         public uint Address;
         public uint Mask;
         public byte[] Mac;
-        public string InterfaceName;
+        public string InterfaceName;   // e.g. "Ethernet", "Wi-Fi"
+        public string Description;     // e.g. "Realtek PCIe GbE Family Controller"
         public bool HasGateway;
+        public bool IsVirtual;         // VPN / hypervisor / container adapter
+        public bool IsWireless;
+        public bool IsHostVSwitch;     // Hyper-V vEthernet with a gateway = the host's real LAN through an external switch
+
+        /// <summary>Physical LAN, or a Hyper-V external switch carrying the host's LAN.</summary>
+        public bool IsLan => !IsVirtual || IsHostVSwitch;
 
         public bool Contains(uint ip) => (ip & Mask) == (Address & Mask);
+
+        public int PrefixLength
+        {
+            get { int n = 0; for (uint m = Mask; (m & 0x80000000) != 0; m <<= 1) n++; return n; }
+        }
+
+        /// <summary>Range to scan for this adapter; networks larger than /24 are limited to the host's /24.</summary>
+        public string ScanRange
+        {
+            get
+            {
+                uint mask = Mask < 0xFFFFFF00 ? 0xFFFFFF00 : Mask;
+                uint net = Address & mask, bcast = net | ~mask;
+                if (bcast - net < 2) return IpRange.ToStr(Address);
+                return IpRange.FormatRange(net + 1, bcast - 1);
+            }
+        }
+
+        /// <summary>Menu label, e.g. "Wi-Fi — 192.168.16.25/24 (Intel(R) Wi-Fi 6 AX201)".</summary>
+        public string Label
+        {
+            get
+            {
+                var d = string.IsNullOrEmpty(Description) || Description == InterfaceName ? "" : $"  ({Description})";
+                return $"{InterfaceName} — {IpRange.ToStr(Address)}/{PrefixLength}{d}";
+            }
+        }
     }
 
     internal static class IpRange
@@ -34,6 +68,15 @@ namespace Vihor.Scanning
 
         public static string ToStr(uint v) => $"{v >> 24}.{(v >> 16) & 255}.{(v >> 8) & 255}.{v & 255}";
 
+        // Adapter descriptions / names that indicate a VPN, hypervisor or container network
+        private static readonly string[] VirtualHints =
+        {
+            "virtual", "hyper-v", "vethernet", "vmware", "virtualbox", "vbox", "radmin", "hamachi", "zerotier",
+            "tailscale", "wireguard", "openvpn", "tap-windows", "tap adapter", "wintun", "vpn", "docker", "wsl",
+            "loopback", "bluetooth", "npcap", "fortinet", "cisco anyconnect", "globalprotect", "pangp", "nordlynx",
+            "proton", "softether", "parallels", "kerio", "sonicwall", "teamviewer", "anydesk"
+        };
+
         public static List<LocalSubnet> GetLocalSubnets()
         {
             var list = new List<LocalSubnet>();
@@ -44,6 +87,15 @@ namespace Vihor.Scanning
                     if (ni.OperationalStatus != OperationalStatus.Up) continue;
                     if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
                         ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                    var text = (ni.Name + " " + ni.Description).ToLowerInvariant();
+                    bool isVirtual = VirtualHints.Any(h => text.Contains(h));
+                    bool isWireless = ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211;
+                    if (!isVirtual && ni.NetworkInterfaceType != NetworkInterfaceType.Ethernet &&
+                        ni.NetworkInterfaceType != NetworkInterfaceType.GigabitEthernet &&
+                        ni.NetworkInterfaceType != NetworkInterfaceType.FastEthernetT &&
+                        ni.NetworkInterfaceType != NetworkInterfaceType.FastEthernetFx && !isWireless)
+                        isVirtual = true; // PPP, unknown, etc.
 
                     var props = ni.GetIPProperties();
                     bool gw = props.GatewayAddresses.Any(g => g.Address.AddressFamily == AddressFamily.InterNetwork &&
@@ -59,29 +111,44 @@ namespace Vihor.Scanning
                             Mask = ToUInt(ua.IPv4Mask),
                             Mac = ni.GetPhysicalAddress()?.GetAddressBytes(),
                             InterfaceName = ni.Name,
-                            HasGateway = gw
+                            Description = ni.Description,
+                            HasGateway = gw,
+                            IsVirtual = isVirtual,
+                            IsWireless = isWireless,
+                            IsHostVSwitch = gw && (text.Contains("vethernet") || text.Contains("hyper-v virtual ethernet"))
+                                               && !text.Contains("default switch") && !text.Contains("wsl"),
                         });
                     }
                 }
             }
             catch { /* no adapters info */ }
 
-            // Adapters with a default gateway first (the "real" LAN), then the rest
-            return list.OrderByDescending(s => s.HasGateway).ToList();
+            // Physical LAN first (wired before Wi-Fi, with gateway before without), virtual adapters last
+            return list.OrderBy(s => !s.IsLan)
+                       .ThenBy(s => s.IsVirtual)
+                       .ThenByDescending(s => s.HasGateway)
+                       .ThenBy(s => s.IsWireless)
+                       .ToList();
         }
 
-        /// <summary>Default scan range for the primary adapter, limited to a /24 around the host.</summary>
+        /// <summary>Default scan range: all physical adapters together; virtual ones only if nothing else exists.</summary>
         public static string DefaultRange(List<LocalSubnet> subnets)
         {
-            var s = subnets.FirstOrDefault();
-            if (s == null) return "192.168.1.1-192.168.1.254";
+            var physical = subnets.Where(s => s.IsLan).ToList();
+            var use = physical.Count > 0 ? physical : subnets.Take(1).ToList();
+            if (use.Count == 0) return "192.168.1.1-254";
+            return JoinRanges(use);
+        }
 
-            uint mask = s.Mask;
-            if (mask < 0xFFFFFF00) mask = 0xFFFFFF00; // larger than /24 -> scan the host's /24 by default
-            uint net = s.Address & mask;
-            uint bcast = net | ~mask;
-            if (bcast - net < 2) return ToStr(s.Address);
-            return $"{ToStr(net + 1)}-{ToStr(bcast - 1)}";
+        public static string JoinRanges(IEnumerable<LocalSubnet> subnets)
+            => string.Join(", ", subnets.Select(s => s.ScanRange).Distinct());
+
+        /// <summary>"192.168.1.1-192.168.1.254" -> "192.168.1.1-254" when only the last octet differs.</summary>
+        public static string FormatRange(uint start, uint end)
+        {
+            if (start == end) return ToStr(start);
+            if ((start & 0xFFFFFF00) == (end & 0xFFFFFF00)) return $"{ToStr(start)}-{end & 255}";
+            return $"{ToStr(start)}-{ToStr(end)}";
         }
 
         /// <summary>

@@ -18,7 +18,7 @@ namespace Vihor
         private readonly ToolStripLabel lblRange = new ToolStripLabel();
         private readonly ToolStripComboBox cmbRange = new ToolStripComboBox();
         private readonly ToolStripButton btnScan = new ToolStripButton();
-        private readonly ToolStripButton btnLocal = new ToolStripButton();
+        private readonly ToolStripSplitButton btnLocal = new ToolStripSplitButton();
         private readonly ToolStripButton btnExport = new ToolStripButton();
         private readonly ToolStripTextBox txtFilter = new ToolStripTextBox();
         private readonly ToolStripLabel lblFilter = new ToolStripLabel();
@@ -119,7 +119,9 @@ namespace Vihor
             mFile = new ToolStripMenuItem("", null, mExportCsv, mExportHtml, new ToolStripSeparator(), mExit);
 
             mScanStart = new ToolStripMenuItem("", null, (s, e) => ToggleScan()) { ShortcutKeys = Keys.F5 };
-            mScanLocal = new ToolStripMenuItem("", null, (s, e) => { cmbRange.Text = IpRange.DefaultRange(IpRange.GetLocalSubnets()); });
+            mScanLocal = new ToolStripMenuItem();
+            mScanLocal.DropDownItems.Add(new ToolStripMenuItem("…"));
+            mScanLocal.DropDownOpening += (s, e) => FillAdapterMenu(mScanLocal.DropDownItems);
             mScanPorts = new ToolStripMenuItem("", null, (s, e) => { Settings.ScanPorts = !Settings.ScanPorts; mScanPorts.Checked = Settings.ScanPorts; })
             { Checked = Settings.ScanPorts };
             mScan = new ToolStripMenuItem("", null, mScanStart, mScanLocal, new ToolStripSeparator(), mScanPorts);
@@ -162,7 +164,9 @@ namespace Vihor
             btnScan.Click += (s, e) => ToggleScan();
 
             btnLocal.DisplayStyle = ToolStripItemDisplayStyle.Text;
-            btnLocal.Click += (s, e) => cmbRange.Text = IpRange.DefaultRange(IpRange.GetLocalSubnets());
+            btnLocal.ButtonClick += (s, e) => cmbRange.Text = IpRange.DefaultRange(IpRange.GetLocalSubnets());
+            btnLocal.DropDownOpening += (s, e) => FillAdapterMenu(btnLocal.DropDownItems);
+            btnLocal.DropDownItems.Add(new ToolStripMenuItem("…")); // placeholder so the arrow is active
 
             btnExport.DisplayStyle = ToolStripItemDisplayStyle.Text;
             btnExport.Click += (s, e) => DoExport(false);
@@ -188,12 +192,12 @@ namespace Vihor
             list.ShowItemToolTips = true;
             list.SmallImageList = icons;
             list.BorderStyle = BorderStyle.None;
-            list.Columns.Add("", LogicalToDeviceUnits(230));
-            list.Columns.Add("", LogicalToDeviceUnits(120));
-            list.Columns.Add("", LogicalToDeviceUnits(200));
-            list.Columns.Add("", LogicalToDeviceUnits(140));
-            list.Columns.Add("", LogicalToDeviceUnits(200));
-            list.Columns.Add("", LogicalToDeviceUnits(70), HorizontalAlignment.Right);
+            list.Columns.Add("", LogicalToDeviceUnits(190));
+            list.Columns.Add("", LogicalToDeviceUnits(115));
+            list.Columns.Add("", LogicalToDeviceUnits(170));
+            list.Columns.Add("", LogicalToDeviceUnits(130));
+            list.Columns.Add("", LogicalToDeviceUnits(150));
+            list.Columns.Add("", LogicalToDeviceUnits(65), HorizontalAlignment.Right);
             list.ColumnClick += (s, e) =>
             {
                 if (e.Column == sortColumn) sortAsc = !sortAsc; else { sortColumn = e.Column; sortAsc = true; }
@@ -354,12 +358,51 @@ namespace Vihor
         private void LoadRanges()
         {
             var subnets = IpRange.GetLocalSubnets();
+            var def = IpRange.DefaultRange(subnets);
+            cmbRange.Items.Add(def);
             foreach (var s in subnets)
+                if (!cmbRange.Items.Contains(s.ScanRange)) cmbRange.Items.Add(s.ScanRange);
+            // Always start with this computer's LAN; the previously scanned range stays in the history
+            if (!string.IsNullOrWhiteSpace(Settings.LastRange) && !cmbRange.Items.Contains(Settings.LastRange))
+                cmbRange.Items.Add(Settings.LastRange);
+            cmbRange.Text = def;
+        }
+
+        /// <summary>"My network" menu: all LAN adapters together, then every adapter on its own.</summary>
+        private void FillAdapterMenu(ToolStripItemCollection items)
+        {
+            items.Clear();
+            var subnets = IpRange.GetLocalSubnets();
+            if (subnets.Count == 0)
             {
-                var r = IpRange.DefaultRange(new List<LocalSubnet> { s });
-                if (!cmbRange.Items.Contains(r)) cmbRange.Items.Add(r);
+                items.Add(new ToolStripMenuItem(Lang.T("menu.no_adapters")) { Enabled = false });
+                return;
             }
-            cmbRange.Text = !string.IsNullOrWhiteSpace(Settings.LastRange) ? Settings.LastRange : IpRange.DefaultRange(subnets);
+
+            var lan = subnets.Where(s => s.IsLan).ToList();
+            if (lan.Count > 0)
+            {
+                var all = IpRange.JoinRanges(lan);
+                var allItem = new ToolStripMenuItem($"{Lang.T("menu.all_lan")}   {all}") { Font = new Font(ctx.Font, FontStyle.Bold) };
+                allItem.Click += (s, e) => cmbRange.Text = all;
+                items.Add(allItem);
+                items.Add(new ToolStripSeparator());
+            }
+
+            bool virtualHeader = false;
+            foreach (var sub in subnets)
+            {
+                if (!sub.IsLan && !virtualHeader)
+                {
+                    items.Add(new ToolStripSeparator());
+                    items.Add(new ToolStripMenuItem(Lang.T("menu.virtual_adapters")) { Enabled = false });
+                    virtualHeader = true;
+                }
+                var range = sub.ScanRange;
+                var item = new ToolStripMenuItem(sub.Label) { ToolTipText = range };
+                item.Click += (s, e) => cmbRange.Text = range;
+                items.Add(item);
+            }
         }
 
         private void ToggleScan()
