@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>VihorIPScanner</AssemblyName>
+    <RootNamespace>Vihor</RootNamespace>
+    <ApplicationIcon>Resources\vihor.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <Company>cyber-security.ba</Company>
+    <Product>Vihor IP Scanner</Product>
+    <AssemblyTitle>Vihor IP Scanner</AssemblyTitle>
+    <Description>Fast, free and open-source network scanner</Description>
+    <Copyright>Copyright © 2026 Đorđe Kaurinović, cyber-security.ba — MIT License</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+    <DebugType>none</DebugType>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <!-- Cross-compiling on Linux/macOS: use Mono's .NET Framework 4.8 reference assemblies -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <MonoRef>/usr/lib/mono/4.8-api</MonoRef>
+    <FrameworkPathOverride>$(MonoRef)</FrameworkPathOverride>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <Reference Include="System.Windows.Forms" HintPath="$(MonoRef)/System.Windows.Forms.dll" />
+    <Reference Include="System.Drawing" HintPath="$(MonoRef)/System.Drawing.dll" />
+    <Reference Include="System.Net.Http" HintPath="$(MonoRef)/System.Net.Http.dll" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\oui.txt.gz" LogicalName="Vihor.oui.txt.gz" />
+    <EmbeddedResource Include="Resources\vihor.ico" LogicalName="Vihor.vihor.ico" />
+    <EmbeddedResource Include="Lang\*.lang" LogicalName="Vihor.Lang.%(Filename).lang" />
+  </ItemGroup>
+
+</Project>

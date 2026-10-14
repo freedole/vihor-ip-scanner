@@ -1,0 +1,8 @@
+* text=auto
+*.cs   text eol=crlf
+*.iss  text eol=crlf
+*.isl  -text
+*.lang text eol=lf
+*.gz   binary
+*.ico  binary
+*.png  binary

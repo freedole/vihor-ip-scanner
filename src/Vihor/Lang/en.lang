@@ -1,0 +1,72 @@
+# Vihor IP Scanner — English (reference translation)
+# Format: key=value (UTF-8). {0}, {1}... are placeholders. To add a language, copy this file to <iso-code>.lang.
+_language=English
+
+menu.file=&File
+menu.export_csv=Export to &CSV…
+menu.export_html=Export to &HTML…
+menu.exit=E&xit
+menu.scan=&Scan
+menu.scan_ports=Detect services (ports)
+menu.settings=S&ettings
+menu.language=&Language
+menu.help=&Help
+menu.website=cyber-security.ba website
+menu.github=Source code on GitHub
+menu.about=&About Vihor IP Scanner
+
+btn.scan=Scan
+btn.stop=Stop
+btn.my_network=My network
+btn.export=Export
+label.range=IP range:
+label.filter=Filter:
+tip.my_network=Fill in the range of this computer's network
+tip.range=Examples: 192.168.1.1-254 · 192.168.1.0/24 · 10.0.0.1-10.0.3.254 · several ranges separated by commas
+tip.this_pc=This computer
+tip.gateway=Default gateway (router)
+
+col.name=Name
+col.ip=IP address
+col.vendor=Manufacturer
+col.mac=MAC address
+col.services=Services
+col.ping=Ping (ms)
+col.workgroup=Workgroup
+
+ctx.copy=Copy
+ctx.copy_row=Whole row
+ctx.rdp=Remote Desktop (RDP)
+ctx.ssh=SSH
+ctx.http=Open in browser (HTTP)
+ctx.https=Open in browser (HTTPS)
+ctx.http_alt=Open in browser (port 8080)
+ctx.ftp=Open FTP
+ctx.explore=Shared folders (\\IP)
+ctx.tools=Tools
+ctx.ping=Ping (continuous)
+ctx.tracert=Traceroute
+ctx.wol=Wake-on-LAN
+ctx.shutdown=Shut down remotely…
+ctx.restart=Restart remotely…
+ctx.abort_shutdown=Abort shutdown
+ctx.rescan=Rescan
+
+status.ready=Ready. Enter an IP range and press Scan (F5).
+status.scanning=Scanning… {0} / {1} addresses · {2} devices found
+status.done=Done. {0} devices found in {1} addresses · {2} s
+status.rescanning=Rescanning…
+
+msg.bad_range=Invalid IP range: {0}
+msg.too_many=The range is too large (maximum {0} addresses).
+msg.nothing_to_export=There is nothing to export yet.
+msg.no_mac=The MAC address of this device is unknown, Wake-on-LAN is not possible.
+msg.wol_sent=Wake-on-LAN packet sent to {0}.
+msg.shutdown_confirm=Shut down {1} ({0})?\n\nThis requires administrator rights on the remote computer. Shutdown starts in 60 seconds and can be aborted.
+
+vendor.random=(randomized MAC)
+
+about.version=Version {0}
+about.tagline=Fast, free and open-source network scanner.
+about.name_meaning=Vihor — Slavic for "whirlwind".
+about.made_in=Made in Bosnia and Herzegovina

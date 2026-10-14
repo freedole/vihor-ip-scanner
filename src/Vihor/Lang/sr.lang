@@ -1,0 +1,71 @@
+# Vihor IP Scanner — Srpski (latinica)
+_language=Srpski (latinica)
+
+menu.file=&Fajl
+menu.export_csv=Izvezi u &CSV…
+menu.export_html=Izvezi u &HTML…
+menu.exit=&Izlaz
+menu.scan=&Skeniranje
+menu.scan_ports=Prepoznaj servise (portove)
+menu.settings=&Podešavanja
+menu.language=&Jezik
+menu.help=Po&moć
+menu.website=Sajt cyber-security.ba
+menu.github=Izvorni kod na GitHubu
+menu.about=&O programu Vihor IP Scanner
+
+btn.scan=Skeniraj
+btn.stop=Zaustavi
+btn.my_network=Moja mreža
+btn.export=Izvezi
+label.range=IP opseg:
+label.filter=Filter:
+tip.my_network=Upiši opseg mreže ovog računara
+tip.range=Primeri: 192.168.1.1-254 · 192.168.1.0/24 · 10.0.0.1-10.0.3.254 · više opsega odvojenih zarezom
+tip.this_pc=Ovaj računar
+tip.gateway=Podrazumevani gateway (ruter)
+
+col.name=Naziv
+col.ip=IP adresa
+col.vendor=Proizvođač
+col.mac=MAC adresa
+col.services=Servisi
+col.ping=Ping (ms)
+col.workgroup=Radna grupa
+
+ctx.copy=Kopiraj
+ctx.copy_row=Ceo red
+ctx.rdp=Udaljena radna površina (RDP)
+ctx.ssh=SSH
+ctx.http=Otvori u pregledaču (HTTP)
+ctx.https=Otvori u pregledaču (HTTPS)
+ctx.http_alt=Otvori u pregledaču (port 8080)
+ctx.ftp=Otvori FTP
+ctx.explore=Deljeni folderi (\\IP)
+ctx.tools=Alati
+ctx.ping=Ping (neprekidno)
+ctx.tracert=Traceroute
+ctx.wol=Wake-on-LAN (probudi)
+ctx.shutdown=Ugasi na daljinu…
+ctx.restart=Restartuj na daljinu…
+ctx.abort_shutdown=Otkaži gašenje
+ctx.rescan=Skeniraj ponovo
+
+status.ready=Spremno. Unesi IP opseg i pritisni Skeniraj (F5).
+status.scanning=Skeniranje… {0} / {1} adresa · pronađeno uređaja: {2}
+status.done=Gotovo. Pronađeno uređaja: {0} od {1} adresa · {2} s
+status.rescanning=Ponovno skeniranje…
+
+msg.bad_range=Neispravan IP opseg: {0}
+msg.too_many=Opseg je prevelik (najviše {0} adresa).
+msg.nothing_to_export=Još nema ničega za izvoz.
+msg.no_mac=MAC adresa ovog uređaja nije poznata, Wake-on-LAN nije moguć.
+msg.wol_sent=Wake-on-LAN paket poslat na {0}.
+msg.shutdown_confirm=Ugasiti {1} ({0})?\n\nPotrebna su administratorska prava na udaljenom računaru. Gašenje počinje za 60 sekundi i može se otkazati.
+
+vendor.random=(nasumična MAC)
+
+about.version=Verzija {0}
+about.tagline=Brz, besplatan skener mreže otvorenog koda.
+about.name_meaning=Vihor — slovenska reč za kovitlac vetra.
+about.made_in=Napravljeno u Bosni i Hercegovini

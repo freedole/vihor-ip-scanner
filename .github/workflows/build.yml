@@ -1,0 +1,89 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -match '^v(\d+\.\d+\.\d+)$') {
+            $v = $Matches[1]
+          } else {
+            $v = ([xml](Get-Content src/Vihor/Vihor.csproj)).Project.PropertyGroup[0].Version
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $v"
+
+      - name: Refresh MAC vendor database from IEEE (best effort)
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force oui | Out-Null
+          $ua = @{ 'User-Agent' = 'Mozilla/5.0 (vihor-ip-scanner build)' }
+          Invoke-WebRequest https://standards-oui.ieee.org/oui/oui.csv     -Headers $ua -OutFile oui/oui.csv
+          Invoke-WebRequest https://standards-oui.ieee.org/oui28/mam.csv   -Headers $ua -OutFile oui/mam.csv
+          Invoke-WebRequest https://standards-oui.ieee.org/oui36/oui36.csv -Headers $ua -OutFile oui/oui36.csv
+          python tools/build_oui.py src/Vihor/Resources/oui.txt.gz oui/oui.csv oui/mam.csv oui/oui36.csv
+
+      - name: Build
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          dotnet build src/Vihor/Vihor.csproj -c Release `
+            -p:Version=$v -p:FileVersion="$v.0" -p:AssemblyVersion="$v.0"
+
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          } else {
+            choco upgrade innosetup -y --no-progress
+          }
+
+      - name: Build installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DAppVersion=${{ steps.ver.outputs.version }}" installer\vihor.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Code signing via SignPath Foundation will be added here once the project is approved.
+
+      - name: Portable zip + checksums
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $bin = "src/Vihor/bin/Release/net48"
+          New-Item -ItemType Directory -Force portable | Out-Null
+          Copy-Item "$bin/VihorIPScanner.exe", "$bin/VihorIPScanner.exe.config" portable/
+          Copy-Item LICENSE portable/LICENSE.txt
+          Compress-Archive -Path portable/* -DestinationPath "dist/VihorIPScanner-Portable-$v.zip" -Force
+          Get-ChildItem dist -File | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
+          Get-Content dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VihorIPScanner-${{ steps.ver.outputs.version }}
+          path: dist/*
+
+      - name: Publish GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Vihor IP Scanner ${{ steps.ver.outputs.version }}
+          files: dist/*
+          generate_release_notes: true

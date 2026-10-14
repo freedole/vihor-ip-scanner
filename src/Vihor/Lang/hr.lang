@@ -1,0 +1,71 @@
+# Vihor IP Scanner — Hrvatski
+_language=Hrvatski
+
+menu.file=&Datoteka
+menu.export_csv=Izvezi u &CSV…
+menu.export_html=Izvezi u &HTML…
+menu.exit=&Izlaz
+menu.scan=&Skeniranje
+menu.scan_ports=Prepoznaj usluge (portove)
+menu.settings=&Postavke
+menu.language=&Jezik
+menu.help=Po&moć
+menu.website=Web stranica cyber-security.ba
+menu.github=Izvorni kod na GitHubu
+menu.about=&O programu Vihor IP Scanner
+
+btn.scan=Skeniraj
+btn.stop=Zaustavi
+btn.my_network=Moja mreža
+btn.export=Izvezi
+label.range=IP raspon:
+label.filter=Filtar:
+tip.my_network=Upiši raspon mreže ovog računala
+tip.range=Primjeri: 192.168.1.1-254 · 192.168.1.0/24 · 10.0.0.1-10.0.3.254 · više raspona odvojenih zarezom
+tip.this_pc=Ovo računalo
+tip.gateway=Zadani pristupnik (usmjerivač)
+
+col.name=Naziv
+col.ip=IP adresa
+col.vendor=Proizvođač
+col.mac=MAC adresa
+col.services=Usluge
+col.ping=Ping (ms)
+col.workgroup=Radna grupa
+
+ctx.copy=Kopiraj
+ctx.copy_row=Cijeli redak
+ctx.rdp=Udaljena radna površina (RDP)
+ctx.ssh=SSH
+ctx.http=Otvori u pregledniku (HTTP)
+ctx.https=Otvori u pregledniku (HTTPS)
+ctx.http_alt=Otvori u pregledniku (port 8080)
+ctx.ftp=Otvori FTP
+ctx.explore=Dijeljene mape (\\IP)
+ctx.tools=Alati
+ctx.ping=Ping (neprekidno)
+ctx.tracert=Traceroute
+ctx.wol=Wake-on-LAN (probudi)
+ctx.shutdown=Isključi na daljinu…
+ctx.restart=Ponovno pokreni na daljinu…
+ctx.abort_shutdown=Otkaži isključivanje
+ctx.rescan=Skeniraj ponovno
+
+status.ready=Spremno. Unesi IP raspon i pritisni Skeniraj (F5).
+status.scanning=Skeniranje… {0} / {1} adresa · pronađeno uređaja: {2}
+status.done=Gotovo. Pronađeno uređaja: {0} od {1} adresa · {2} s
+status.rescanning=Ponovno skeniranje…
+
+msg.bad_range=Neispravan IP raspon: {0}
+msg.too_many=Raspon je prevelik (najviše {0} adresa).
+msg.nothing_to_export=Još nema ničega za izvoz.
+msg.no_mac=MAC adresa ovog uređaja nije poznata, Wake-on-LAN nije moguć.
+msg.wol_sent=Wake-on-LAN paket poslan na {0}.
+msg.shutdown_confirm=Isključiti {1} ({0})?\n\nPotrebna su administratorska prava na udaljenom računalu. Isključivanje počinje za 60 sekundi i može se otkazati.
+
+vendor.random=(nasumična MAC)
+
+about.version=Verzija {0}
+about.tagline=Brz, besplatan mrežni skener otvorenog koda.
+about.name_meaning=Vihor — slavenska riječ za kovitlac vjetra.
+about.made_in=Izrađeno u Bosni i Hercegovini
