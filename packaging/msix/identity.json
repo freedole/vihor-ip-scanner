@@ -1,6 +1,6 @@
 {
-  "_comment": "Values from Partner Center > Product management > Product identity. Placeholders until the Store name is reserved.",
-  "identityName": "CyberSecurityBA.VihorIPScanner",
-  "publisher": "CN=00000000-0000-0000-0000-000000000000",
-  "publisherDisplayName": "cyber-security.ba"
+  "_comment": "Values from Partner Center > Product management > Product identity (Store ID 9NHGBPBZZLCN).",
+  "identityName": "freedole.VihorIPScanner",
+  "publisher": "CN=AC09C26C-4C91-4B3B-AECF-708B4EEC983D",
+  "publisherDisplayName": "freedole"
 }
