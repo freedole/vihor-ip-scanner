@@ -141,7 +141,7 @@ begin
   Result := True;
   if not IsDotNet48Installed() then
   begin
-    if MsgBox(CustomMessage('NetMissing'), mbError, MB_YESNO) = IDYES then
+    if SuppressibleMsgBox(CustomMessage('NetMissing'), mbError, MB_YESNO, IDNO) = IDYES then
       ShellExec('open', 'https://dotnet.microsoft.com/download/dotnet-framework/net48', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     Result := False;
   end;
