@@ -75,10 +75,38 @@ jobs:
           } | Set-Content dist/SHA256SUMS.txt -Encoding ascii
           Get-Content dist/SHA256SUMS.txt
 
+      - name: Build MSIX package (Microsoft Store)
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $id = Get-Content packaging/msix/identity.json -Raw | ConvertFrom-Json
+          $stage = "msix-stage"
+          New-Item -ItemType Directory -Force $stage, store | Out-Null
+          $bin = "src/Vihor/bin/Release/net48"
+          Copy-Item "$bin/VihorIPScanner.exe", "$bin/VihorIPScanner.exe.config" $stage/
+          Copy-Item LICENSE "$stage/LICENSE.txt"
+          Copy-Item packaging/msix/Assets $stage/Assets -Recurse
+          (Get-Content packaging/msix/AppxManifest.template.xml -Raw) `
+            -replace '\$VERSION\$', $v `
+            -replace '\$IDENTITY_NAME\$', $id.identityName `
+            -replace '\$PUBLISHER\$', $id.publisher `
+            -replace '\$PUBLISHER_DISPLAY\$', $id.publisherDisplayName |
+            Set-Content "$stage/AppxManifest.xml" -Encoding utf8
+          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" |
+                      Sort-Object FullName | Select-Object -Last 1
+          if (-not $makeappx) { throw "makeappx.exe not found" }
+          & $makeappx.FullName pack /d $stage /p "store/VihorIPScanner-$v.msix" /o
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - uses: actions/upload-artifact@v4
         with:
           name: VihorIPScanner-${{ steps.ver.outputs.version }}
           path: dist/*
+
+      # Unsigned MSIX for upload to Partner Center (the Store signs it); not attached to GitHub releases
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VihorIPScanner-Store-${{ steps.ver.outputs.version }}
+          path: store/*.msix
 
       # A release is published when a v* tag is pushed, or when main contains a version
       # (src/Vihor/Vihor.csproj <Version>) that has no release yet. The tag is created automatically.

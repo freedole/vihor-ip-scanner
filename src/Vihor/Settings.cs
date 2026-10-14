@@ -32,6 +32,7 @@ namespace Vihor
             Read(UserFile, d);
 
             if (d.TryGetValue("Language", out var l) && !string.IsNullOrWhiteSpace(l)) Language = Lang.Normalize(l);
+            else Language = Lang.Normalize(System.Globalization.CultureInfo.CurrentUICulture.Name); // e.g. Store install: follow Windows
             if (d.TryGetValue("LastRange", out var r)) LastRange = r;
             PingTimeoutMs = Clamp(GetInt(d, "PingTimeoutMs", PingTimeoutMs), 100, 5000);
             Threads = Clamp(GetInt(d, "Threads", Threads), 8, 512);
