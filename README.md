@@ -63,18 +63,28 @@ Releases are built by GitHub Actions from tagged commits (`v*`). Nothing is buil
 UI strings live in [`src/Vihor/Lang`](src/Vihor/Lang) as simple `key=value` files.
 To add a language, copy `en.lang` to `<iso-code>.lang` (e.g. `de.lang`), translate the values and open a pull request.
 
-## Privacy
-
-Vihor IP Scanner does not collect or send any data. It only contacts the addresses you choose to scan,
-and opens web pages (cyber-security.ba, GitHub) only when you click the corresponding menu item.
-
 ## Code signing policy
 
-Code signing for release builds is being requested from the [SignPath Foundation](https://signpath.org).
-Until approved, release binaries are unsigned.
+Code signing for Windows release builds has been requested from the [SignPath Foundation](https://signpath.org)
+(free code signing for open-source projects). Until approved, release binaries are unsigned.
 
-- Releases are built only by GitHub Actions from this repository — no local builds are published.
-- Committers and approvers: [Đorđe Kaurinović](https://github.com/freedole)
+- All release binaries are built by GitHub Actions from the public source code in this repository; nothing built on a personal machine is published.
+- Every signing request is approved manually by an approver.
+- The product name and version in the file metadata match this project and its release tag.
+
+Team roles:
+
+| Role | Members |
+|---|---|
+| Committers (authors) | [Đorđe Kaurinović](https://github.com/freedole) |
+| Reviewers | [Đorđe Kaurinović](https://github.com/freedole) |
+| Approvers | [Đorđe Kaurinović](https://github.com/freedole) |
+
+## Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+It only contacts the IP addresses the user chooses to scan, and opens web pages (cyber-security.ba, GitHub) only when the user clicks the corresponding menu item. There is no telemetry, no update check and no analytics.
 
 ## License
 
