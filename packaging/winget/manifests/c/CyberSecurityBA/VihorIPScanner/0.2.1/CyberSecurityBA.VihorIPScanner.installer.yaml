@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 PackageIdentifier: CyberSecurityBA.VihorIPScanner
-PackageVersion: 0.2.0
+PackageVersion: 0.2.1
 MinimumOSVersion: 10.0.17763.0
 InstallerType: inno
 Scope: machine
@@ -9,7 +9,7 @@ ProductCode: '{BEB7B594-4657-411D-9C23-44D4919A96E0}_is1'
 ReleaseDate: 2026-10-14
 Installers:
 - Architecture: neutral
-  InstallerUrl: https://github.com/freedole/vihor-ip-scanner/releases/download/v0.2.0/VihorIPScanner-Setup-0.2.0.exe
-  InstallerSha256: 6ABC75D3F0F120ED91D34FE816241702AEF0EAE5AEAC9EBF1A4F6F8A5097E2E1
+  InstallerUrl: https://github.com/freedole/vihor-ip-scanner/releases/download/v0.2.1/VihorIPScanner-Setup-0.2.1.exe
+  InstallerSha256: 6DAEFC91FA8DBA397B8625E1A11A4A64EBAD4548DEC3456C93D2CDB2DC8518EE
 ManifestType: installer
 ManifestVersion: 1.9.0
