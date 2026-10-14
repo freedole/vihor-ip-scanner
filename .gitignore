@@ -5,3 +5,4 @@ portable/
 oui/
 *.user
 .vs/
+__pycache__/
