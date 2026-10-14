@@ -102,6 +102,18 @@ jobs:
           name: VihorIPScanner-${{ steps.ver.outputs.version }}
           path: dist/*
 
+      # Keep the latest Store package in a private draft release (drafts are visible only to maintainers)
+      - name: Update private draft with Store package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete store-upload --repo "${{ github.repository }}" --yes *> $null
+          $global:LASTEXITCODE = 0
+          gh release create store-upload store/*.msix --repo "${{ github.repository }}" --draft `
+            --title "Microsoft Store upload (private draft)" `
+            --notes "Unsigned MSIX for Partner Center. Not for direct installation."
+
       # Unsigned MSIX for upload to Partner Center (the Store signs it); not attached to GitHub releases
       - uses: actions/upload-artifact@v4
         with:
