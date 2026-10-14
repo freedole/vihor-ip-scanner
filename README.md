@@ -34,6 +34,13 @@
 Get the installer or the portable ZIP from the **[latest release](https://github.com/freedole/vihor-ip-scanner/releases/latest)**.
 Every release lists SHA-256 checksums in `SHA256SUMS.txt`.
 
+**Scoop:**
+
+```powershell
+scoop bucket add vihor https://github.com/freedole/vihor-ip-scanner
+scoop install vihor
+```
+
 **Requirements:** Windows 10 / 11 (or Windows 7 SP1+ with .NET Framework 4.8).
 
 > Until code signing is in place, Windows SmartScreen may show *"Windows protected your PC"*.
