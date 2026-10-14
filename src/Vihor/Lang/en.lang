@@ -73,3 +73,13 @@ about.version=Version {0}
 about.tagline=Fast, free and open-source network scanner.
 about.name_meaning=Vihor — Slavic for "whirlwind".
 about.made_in=Made in Bosnia and Herzegovina
+
+ctx.open=Open
+ctx.expand_all=Expand all
+ctx.collapse_all=Collapse all
+msg.copied=Copied to clipboard: {0}
+svc.smb=Shared folders
+svc.rdp=Remote Desktop
+svc.telnet=Telnet console
+svc.printer=Network printer (RAW 9100)
+svc.vnc=Remote screen

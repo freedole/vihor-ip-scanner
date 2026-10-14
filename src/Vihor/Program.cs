@@ -19,6 +19,10 @@ namespace Vihor
             }
 
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            ServicePointManager.DefaultConnectionLimit = 64;
+            // The scanner runs hundreds of short-lived probes in parallel; avoid thread-pool ramp-up delays
+            ThreadPool.GetMinThreads(out int w, out int io);
+            ThreadPool.SetMinThreads(Math.Max(w, 200), Math.Max(io, 200));
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.ThreadException += (s, e) => ShowError(e.Exception);

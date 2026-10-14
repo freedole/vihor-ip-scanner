@@ -20,7 +20,8 @@
 
 - **Fast discovery** — parallel ICMP ping + ARP, so devices that block ping are found too
 - **Device details** — name (DNS / NetBIOS), IP, MAC address, manufacturer (offline IEEE OUI database), ping time
-- **Service detection** — FTP, SSH, Telnet, HTTP, HTTPS, SMB, RDP, VNC, HTTP 8080, printers (9100)
+- **Service detection** — HTTP/HTTPS (incl. 8080, 8443, Proxmox 8006) with page title and server, SSH/FTP/VNC banners, SMB, RDP, Telnet, printers (9100)
+- **Expandable rows** — click the arrow next to a device to list its services; double-click a service to open it
 - **One-click actions** — Remote Desktop, SSH, open in browser, shared folders (`\\IP`), FTP, ping, traceroute
 - **Wake-on-LAN** and remote shutdown / restart (with confirmation)
 - **Copy** IP, name, MAC, manufacturer or whole rows · **Export** to CSV (Excel-friendly) and HTML

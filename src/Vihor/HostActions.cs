@@ -62,6 +62,45 @@ namespace Vihor
             }
         }
 
+        /// <summary>URL or command target shown in tooltips, e.g. https://192.168.16.10:8006/</summary>
+        public static string ServiceTarget(HostInfo h, ServiceDetail d)
+        {
+            var def = d.Def;
+            if (def.IsWeb)
+            {
+                bool std = (def.Scheme == "http" && def.Port == 80) || (def.Scheme == "https" && def.Port == 443);
+                return std ? $"{def.Scheme}://{h.IpText}/" : $"{def.Scheme}://{h.IpText}:{def.Port}/";
+            }
+            switch (def.Svc)
+            {
+                case Service.Ssh: return "ssh " + h.IpText;
+                case Service.Rdp: return "mstsc /v:" + h.IpText;
+                case Service.Smb: return @"\\" + h.IpText;
+                case Service.Ftp: return "ftp://" + h.IpText + "/";
+                case Service.Telnet: return "telnet " + h.IpText;
+                default: return $"{h.IpText}:{def.Port}";
+            }
+        }
+
+        /// <summary>Opens a detected service with the matching Windows tool.</summary>
+        public static void OpenService(HostInfo h, ServiceDetail d)
+        {
+            var def = d.Def;
+            if (def.IsWeb) { Start(ServiceTarget(h, d), null); return; }
+            switch (def.Svc)
+            {
+                case Service.Ssh: Ssh(h); break;
+                case Service.Rdp: Rdp(h); break;
+                case Service.Smb: Explore(h); break;
+                case Service.Ftp: Ftp(h); break;
+                case Service.Telnet: Start("cmd.exe", "/k telnet " + h.IpText); break;
+                default:
+                    Copy($"{h.IpText}:{def.Port}");
+                    Info(Lang.T("msg.copied", $"{h.IpText}:{def.Port}"));
+                    break;
+            }
+        }
+
         public static void Copy(string text)
         {
             if (string.IsNullOrEmpty(text)) return;

@@ -40,6 +40,10 @@ namespace Vihor
         private ToolStripMenuItem cCopy, cCopyIp, cCopyName, cCopyMac, cCopyVendor, cCopyRow;
         private ToolStripMenuItem cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore;
         private ToolStripMenuItem cTools, cPing, cTracert, cWol, cRescan, cShutdown, cRestart, cAbort;
+        private ToolStripMenuItem cOpenService, cExpandAll, cCollapseAll;
+        private ToolStripSeparator cOpenServiceSep;
+        private readonly HashSet<uint> expanded = new HashSet<uint>();
+        private bool chevronClicked;
 
         // --- state ---
         private readonly List<HostInfo> hosts = new List<HostInfo>();
@@ -90,24 +94,81 @@ namespace Vihor
 
         // ------------------------------------------------------------------ build UI
 
+        private int iconSz;
+
         private void BuildIcons()
         {
-            int sz = LogicalToDeviceUnits(16);
-            icons.ImageSize = new Size(sz, sz);
+            int sz = iconSz = LogicalToDeviceUnits(16);
+            icons.ImageSize = new Size(sz * 2, sz);   // [chevron][status dot]
             icons.ColorDepth = ColorDepth.Depth32Bit;
-            icons.Images.Add("alive", Dot(sz, Color.FromArgb(46, 160, 67)));
-            icons.Images.Add("self", Dot(sz, Color.FromArgb(31, 111, 235)));
-            icons.Images.Add("gateway", Dot(sz, Color.FromArgb(219, 130, 20)));
+            var colors = new Dictionary<string, Color>
+            {
+                ["alive"] = Color.FromArgb(46, 160, 67),
+                ["self"] = Color.FromArgb(31, 111, 235),
+                ["gateway"] = Color.FromArgb(219, 130, 20),
+            };
+            foreach (var kv in colors)
+            {
+                icons.Images.Add(kv.Key, HostIcon(sz, kv.Value, 0));
+                icons.Images.Add(kv.Key + "_c", HostIcon(sz, kv.Value, 1));
+                icons.Images.Add(kv.Key + "_e", HostIcon(sz, kv.Value, 2));
+            }
+            foreach (var k in new[] { "web", "term", "folder", "rdp", "other" })
+                icons.Images.Add("svc_" + k, ServiceIcon(sz, k));
         }
 
-        private static Bitmap Dot(int sz, Color c)
+        /// <summary>chevron: 0 = none, 1 = collapsed (›), 2 = expanded (⌄)</summary>
+        private static Bitmap HostIcon(int sz, Color c, int chevron)
         {
-            var b = new Bitmap(sz, sz);
+            var b = new Bitmap(sz * 2, sz);
             using var g = Graphics.FromImage(b);
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            if (chevron != 0)
+            {
+                using var pen = new Pen(Color.FromArgb(110, 118, 129), Math.Max(1.5f, sz / 9f));
+                float cx = sz / 2f, cy = sz / 2f, r = sz / 5f;
+                if (chevron == 1) g.DrawLines(pen, new[] { new PointF(cx - r / 2, cy - r), new PointF(cx + r / 2, cy), new PointF(cx - r / 2, cy + r) });
+                else g.DrawLines(pen, new[] { new PointF(cx - r, cy - r / 2), new PointF(cx, cy + r / 2), new PointF(cx + r, cy - r / 2) });
+            }
             int pad = Math.Max(2, sz / 5);
             using var br = new SolidBrush(c);
-            g.FillEllipse(br, pad, pad, sz - 2 * pad, sz - 2 * pad);
+            g.FillEllipse(br, sz + pad, pad, sz - 2 * pad, sz - 2 * pad);
+            return b;
+        }
+
+        private static Bitmap ServiceIcon(int sz, string kind)
+        {
+            var b = new Bitmap(sz * 2, sz);
+            using var g = Graphics.FromImage(b);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var col = Color.FromArgb(31, 111, 235);
+            using var pen = new Pen(col, Math.Max(1.2f, sz / 12f));
+            float p = sz * 0.15f, w = sz - 2 * p;
+            switch (kind)
+            {
+                case "web": // globe
+                    g.DrawEllipse(pen, p, p, w, w);
+                    g.DrawEllipse(pen, p + w * 0.3f, p, w * 0.4f, w);
+                    g.DrawLine(pen, p, sz / 2f, sz - p, sz / 2f);
+                    break;
+                case "term": // >_
+                    g.DrawRectangle(pen, p, p + w * 0.1f, w, w * 0.8f);
+                    g.DrawLines(pen, new[] { new PointF(p + w * 0.2f, p + w * 0.35f), new PointF(p + w * 0.4f, p + w * 0.5f), new PointF(p + w * 0.2f, p + w * 0.65f) });
+                    g.DrawLine(pen, p + w * 0.5f, p + w * 0.68f, p + w * 0.8f, p + w * 0.68f);
+                    break;
+                case "folder":
+                    g.DrawPolygon(pen, new[] { new PointF(p, p + w * 0.2f), new PointF(p + w * 0.4f, p + w * 0.2f), new PointF(p + w * 0.5f, p + w * 0.35f),
+                                               new PointF(p + w, p + w * 0.35f), new PointF(p + w, p + w * 0.85f), new PointF(p, p + w * 0.85f) });
+                    break;
+                case "rdp": // monitor
+                    g.DrawRectangle(pen, p, p + w * 0.05f, w, w * 0.65f);
+                    g.DrawLine(pen, sz / 2f, p + w * 0.7f, sz / 2f, p + w * 0.9f);
+                    g.DrawLine(pen, p + w * 0.25f, p + w * 0.92f, p + w * 0.75f, p + w * 0.92f);
+                    break;
+                default:
+                    g.DrawEllipse(pen, p + w * 0.2f, p + w * 0.2f, w * 0.6f, w * 0.6f);
+                    break;
+            }
             return b;
         }
 
@@ -203,10 +264,43 @@ namespace Vihor
                 if (e.Column == sortColumn) sortAsc = !sortAsc; else { sortColumn = e.Column; sortAsc = true; }
                 RebuildList();
             };
-            list.DoubleClick += (s, e) => DefaultAction();
+            list.OwnerDraw = true;
+            list.DrawColumnHeader += (s, e) => e.DrawDefault = true;
+            list.DrawItem += (s, e) => e.DrawDefault = !(e.Item.Tag is ServiceRow);
+            list.DrawSubItem += (s, e) =>
+            {
+                if (e.Item.Tag is ServiceRow sr) DrawServiceRow(e.Graphics, e.Item, sr);
+                else e.DrawDefault = true;
+            };
+            list.MouseClick += (s, e) =>
+            {
+                chevronClicked = false;
+                if (e.Button != MouseButtons.Left) return;
+                var hit = list.HitTest(e.Location);
+                if (hit.Item?.Tag is HostInfo h && h.Details.Count > 0)
+                {
+                    var icon = list.GetItemRect(hit.Item.Index, ItemBoundsPortion.Icon);
+                    if (e.X >= icon.Left - 2 && e.X < icon.Left + iconSz + 2) { chevronClicked = true; ToggleExpand(h); }
+                }
+            };
+            list.DoubleClick += (s, e) =>
+            {
+                if (chevronClicked) return;
+                var item = list.SelectedItems.Count > 0 ? list.SelectedItems[0] : null;
+                if (item?.Tag is ServiceRow sr) HostActions.OpenService(sr.Host, sr.Detail);
+                else if (item?.Tag is HostInfo h) { if (h.Details.Count > 0) ToggleExpand(h); else DefaultAction(); }
+            };
             list.KeyDown += (s, e) =>
             {
-                if (e.KeyCode == Keys.Enter) { DefaultAction(); e.Handled = true; }
+                var item = list.FocusedItem;
+                if (e.KeyCode == Keys.Enter)
+                {
+                    if (item?.Tag is ServiceRow sr) HostActions.OpenService(sr.Host, sr.Detail); else DefaultAction();
+                    e.Handled = true;
+                }
+                if (e.KeyCode == Keys.Right && item?.Tag is HostInfo hr && hr.Details.Count > 0 && !expanded.Contains(hr.Ip)) { ToggleExpand(hr); e.Handled = true; }
+                if (e.KeyCode == Keys.Left && item?.Tag is HostInfo hl && expanded.Contains(hl.Ip)) { ToggleExpand(hl); e.Handled = true; }
+                if (e.KeyCode == Keys.Left && item?.Tag is ServiceRow sl) { ToggleExpand(sl.Host); e.Handled = true; }
                 if (e.Control && e.KeyCode == Keys.C) { HostActions.Copy(string.Join(Environment.NewLine, Selected().Select(h => h.IpText))); e.Handled = true; }
                 if (e.Control && e.KeyCode == Keys.A) { foreach (ListViewItem i in list.Items) i.Selected = true; e.Handled = true; }
             };
@@ -242,18 +336,31 @@ namespace Vihor
             cTools = new ToolStripMenuItem("", null, cPing, cTracert, cWol, new ToolStripSeparator(), cShutdown, cRestart, cAbort);
 
             cRescan = new ToolStripMenuItem("", null, async (s, e) => await RescanSelected());
+            cOpenService = new ToolStripMenuItem("", null, (s, e) =>
+            {
+                if (list.FocusedItem?.Tag is ServiceRow sr) HostActions.OpenService(sr.Host, sr.Detail);
+            }) { Font = new Font(ctx.Font, FontStyle.Bold) };
+            cOpenServiceSep = new ToolStripSeparator();
+            cExpandAll = new ToolStripMenuItem("", null, (s, e) => { foreach (var h in hosts) if (h.Details.Count > 0) expanded.Add(h.Ip); RebuildList(); });
+            cCollapseAll = new ToolStripMenuItem("", null, (s, e) => { expanded.Clear(); RebuildList(); });
 
             ctx.Items.AddRange(new ToolStripItem[]
             {
                 cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore, new ToolStripSeparator(),
-                cCopy, cTools, new ToolStripSeparator(), cRescan
+                cCopy, cTools, new ToolStripSeparator(), cRescan, cExpandAll, cCollapseAll
             });
+            ctx.Items.Insert(0, cOpenServiceSep);
+            ctx.Items.Insert(0, cOpenService);
 
             ctx.Opening += (s, e) =>
             {
                 var sel = Selected().ToList();
                 if (sel.Count == 0) { e.Cancel = true; return; }
                 var h = sel[0];
+                bool onService = list.FocusedItem?.Tag is ServiceRow;
+                cOpenService.Visible = cOpenServiceSep.Visible = onService;
+                if (onService) cOpenService.Text = Lang.T("ctx.open") + "  " + ((ServiceRow)list.FocusedItem.Tag).Detail.Def.Label +
+                    (((ServiceRow)list.FocusedItem.Tag).Detail.Def.IsWeb ? " :" + ((ServiceRow)list.FocusedItem.Tag).Detail.Def.Port : "");
                 void Mark(ToolStripMenuItem i, bool detected) => i.Font = new Font(ctx.Font, detected ? FontStyle.Bold : FontStyle.Regular);
                 Mark(cRdp, h.Has(Service.Rdp));
                 Mark(cSsh, h.Has(Service.Ssh));
@@ -340,6 +447,8 @@ namespace Vihor
             cRestart.Text = Lang.T("ctx.restart");
             cAbort.Text = Lang.T("ctx.abort_shutdown");
             cRescan.Text = Lang.T("ctx.rescan");
+            cExpandAll.Text = Lang.T("ctx.expand_all");
+            cCollapseAll.Text = Lang.T("ctx.collapse_all");
 
             UpdateStatus();
             RebuildList();
@@ -427,6 +536,7 @@ namespace Vihor
             if (!cmbRange.Items.Contains(range)) cmbRange.Items.Insert(0, range);
 
             hosts.Clear();
+            expanded.Clear();
             while (incoming.TryDequeue(out _)) { }
             list.Items.Clear();
 
@@ -520,13 +630,17 @@ namespace Vihor
 
             view = Sort(view);
 
-            var selectedIps = new HashSet<uint>(Selected().Select(h => h.Ip));
+            var selectedIps = new HashSet<uint>(list.SelectedItems.Cast<ListViewItem>().Where(i => i.Tag is HostInfo).Select(i => ((HostInfo)i.Tag).Ip));
+            var focusedKey = KeyOf(list.FocusedItem);
+            int topIndex = list.TopItem?.Index ?? 0;
             list.BeginUpdate();
             list.Items.Clear();
             foreach (var h in view)
             {
-                var name = h.Name;
-                var item = new ListViewItem(name) { Tag = h, ImageKey = h.IsSelf ? "self" : h.IsGateway ? "gateway" : "alive" };
+                var name = string.IsNullOrEmpty(h.Name) ? h.IpText : h.Name;
+                var baseKey = h.IsSelf ? "self" : h.IsGateway ? "gateway" : "alive";
+                bool isOpen = expanded.Contains(h.Ip);
+                var item = new ListViewItem(name) { Tag = h, ImageKey = h.Details.Count == 0 ? baseKey : baseKey + (isOpen ? "_e" : "_c") };
                 item.SubItems.Add(h.IpText);
                 item.SubItems.Add(h.Vendor);
                 item.SubItems.Add(h.MacText);
@@ -536,8 +650,20 @@ namespace Vihor
                                    string.IsNullOrEmpty(h.Workgroup) ? "" : Lang.T("col.workgroup") + ": " + h.Workgroup;
                 if (selectedIps.Contains(h.Ip)) item.Selected = true;
                 list.Items.Add(item);
+                if (KeyOf(item) == focusedKey) item.Focused = true;
+
+                if (!isOpen) continue;
+                foreach (var d in h.Details)
+                {
+                    var child = new ListViewItem(d.Text) { Tag = new ServiceRow { Host = h, Detail = d }, ImageKey = ServiceIconKey(d), IndentCount = 1 };
+                    for (int c = 1; c < list.Columns.Count; c++) child.SubItems.Add("");
+                    child.ToolTipText = d.Text + "\n" + HostActions.ServiceTarget(h, d);
+                    list.Items.Add(child);
+                    if (KeyOf(child) == focusedKey) { child.Focused = true; child.Selected = true; }
+                }
             }
             list.EndUpdate();
+            if (list.Items.Count > 0) try { list.TopItem = list.Items[Math.Min(topIndex, list.Items.Count - 1)]; } catch { }
         }
 
         private IEnumerable<HostInfo> Sort(IEnumerable<HostInfo> src)
@@ -557,8 +683,54 @@ namespace Vihor
 
         private IEnumerable<HostInfo> Selected()
         {
+            var seen = new HashSet<uint>();
             foreach (ListViewItem i in list.SelectedItems)
-                if (i.Tag is HostInfo h) yield return h;
+            {
+                var h = i.Tag as HostInfo ?? (i.Tag as ServiceRow)?.Host;
+                if (h != null && seen.Add(h.Ip)) yield return h;
+            }
+        }
+
+        private void ToggleExpand(HostInfo h)
+        {
+            if (!expanded.Remove(h.Ip)) expanded.Add(h.Ip);
+            RebuildList();
+        }
+
+        private static string KeyOf(ListViewItem i) =>
+            i?.Tag is HostInfo h ? "h" + h.Ip : i?.Tag is ServiceRow r ? $"s{r.Host.Ip}:{r.Detail.Def.Port}" : null;
+
+        private static string ServiceIconKey(ServiceDetail d)
+        {
+            if (d.Def.IsWeb) return "svc_web";
+            switch (d.Def.Svc)
+            {
+                case Service.Ssh: case Service.Telnet: return "svc_term";
+                case Service.Smb: case Service.Ftp: return "svc_folder";
+                case Service.Rdp: case Service.Vnc: return "svc_rdp";
+                default: return "svc_other";
+            }
+        }
+
+        /// <summary>Service rows span the whole width (like a tree node), drawn as a link.</summary>
+        private void DrawServiceRow(Graphics g, ListViewItem item, ServiceRow sr)
+        {
+            var row = item.Bounds;
+            bool sel = item.Selected;
+            var bg = sel ? (list.Focused ? SystemColors.Highlight : SystemColors.ControlLight) : list.BackColor;
+            var fg = sel && list.Focused ? SystemColors.HighlightText : Color.FromArgb(31, 111, 235);
+            using (var b = new SolidBrush(bg)) g.FillRectangle(b, row);
+
+            var iconRect = list.GetItemRect(item.Index, ItemBoundsPortion.Icon);
+            int x = iconRect.Left;
+            int y = row.Top + (row.Height - icons.ImageSize.Height) / 2;
+            icons.Draw(g, x, y, icons.Images.IndexOfKey(item.ImageKey));
+            x += iconSz + LogicalToDeviceUnits(4);
+
+            var textRect = new Rectangle(x, row.Top, Math.Max(0, row.Right - x - 4), row.Height);
+            TextRenderer.DrawText(g, item.Text, list.Font, textRect, fg,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine |
+                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
         private void DefaultAction()
@@ -635,6 +807,13 @@ namespace Vihor
             if (disposing) { uiTimer.Dispose(); cts?.Dispose(); }
             base.Dispose(disposing);
         }
+    }
+
+    /// <summary>Child row under a host: one detected service.</summary>
+    internal sealed class ServiceRow
+    {
+        public HostInfo Host;
+        public ServiceDetail Detail;
     }
 
     /// <summary>Double-buffered ListView (no flicker while results stream in).</summary>

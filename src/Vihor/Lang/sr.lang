@@ -72,3 +72,13 @@ about.version=Verzija {0}
 about.tagline=Brz, besplatan skener mreže otvorenog koda.
 about.name_meaning=Vihor — slovenska reč za kovitlac vetra.
 about.made_in=Napravljeno u Bosni i Hercegovini
+
+ctx.open=Otvori
+ctx.expand_all=Proširi sve
+ctx.collapse_all=Skupi sve
+msg.copied=Kopirano: {0}
+svc.smb=Deljeni folderi
+svc.rdp=Udaljena radna površina
+svc.telnet=Telnet konzola
+svc.printer=Mrežni štampač (RAW 9100)
+svc.vnc=Udaljeni ekran

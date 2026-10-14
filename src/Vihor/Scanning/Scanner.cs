@@ -16,6 +16,7 @@ namespace Vihor.Scanning
         public bool ScanPorts = true;
         public int PortTimeoutMs = 400;
         public int NameTimeoutMs = 1500;
+        public int ProbeTimeoutMs = 2500;
     }
 
     /// <summary>
@@ -111,6 +112,14 @@ namespace Vihor.Scanning
             if (host.IsSelf && string.IsNullOrEmpty(host.Name)) host.Name = Environment.MachineName;
             host.Vendor = OuiDb.Lookup(host.Mac);
             host.Services = portTask.Result;
+
+            // Describe each open service (page title, server, banner) — in parallel, bounded by a timeout
+            if (host.Services != Service.None && !ct.IsCancellationRequested)
+            {
+                var probes = HostInfo.Ports.Where(p => host.Has(p.Svc))
+                                           .Select(p => ServiceProbe.DescribeAsync(addr, p, opt.ProbeTimeoutMs));
+                host.Details = (await Task.WhenAll(probes).ConfigureAwait(false)).ToList();
+            }
             return host;
         }
 
