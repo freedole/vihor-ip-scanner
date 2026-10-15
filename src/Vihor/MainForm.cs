@@ -32,7 +32,7 @@ namespace Vihor
 
         // menus (kept as fields so texts can be re-applied on language change)
         private ToolStripMenuItem mFile, mExportCsv, mExportHtml, mExit;
-        private ToolStripMenuItem mScan, mScanStart, mScanLocal, mScanPorts;
+        private ToolStripMenuItem mScan, mScanStart, mScanLocal, mScanPorts, mScanExtended, mDiag;
         private ToolStripMenuItem mSettings, mLanguage;
         private ToolStripMenuItem mHelp, mWebsite, mGithub, mAbout;
 
@@ -185,7 +185,9 @@ namespace Vihor
             mScanLocal.DropDownOpening += (s, e) => FillAdapterMenu(mScanLocal.DropDownItems);
             mScanPorts = new ToolStripMenuItem("", null, (s, e) => { Settings.ScanPorts = !Settings.ScanPorts; mScanPorts.Checked = Settings.ScanPorts; })
             { Checked = Settings.ScanPorts };
-            mScan = new ToolStripMenuItem("", null, mScanStart, mScanLocal, new ToolStripSeparator(), mScanPorts);
+            mScanExtended = new ToolStripMenuItem("", null, (s, e) => { Settings.ExtendedPorts = !Settings.ExtendedPorts; mScanExtended.Checked = Settings.ExtendedPorts; })
+            { Checked = Settings.ExtendedPorts };
+            mScan = new ToolStripMenuItem("", null, mScanStart, mScanLocal, new ToolStripSeparator(), mScanPorts, mScanExtended);
 
             mLanguage = new ToolStripMenuItem();
             foreach (var l in Lang.Available)
@@ -199,7 +201,8 @@ namespace Vihor
             mWebsite = new ToolStripMenuItem("", null, (s, e) => OpenUrl(AppInfo.Website));
             mGithub = new ToolStripMenuItem("", null, (s, e) => OpenUrl(AppInfo.Repository));
             mAbout = new ToolStripMenuItem("", null, (s, e) => { using var a = new AboutForm(); a.ShowDialog(this); });
-            mHelp = new ToolStripMenuItem("", null, mWebsite, mGithub, new ToolStripSeparator(), mAbout);
+            mDiag = new ToolStripMenuItem("", null, (s, e) => SaveDiagnostics());
+            mHelp = new ToolStripMenuItem("", null, mWebsite, mGithub, new ToolStripSeparator(), mDiag, new ToolStripSeparator(), mAbout);
 
             menu.Items.AddRange(new ToolStripItem[] { mFile, mScan, mSettings, mHelp });
         }
@@ -421,6 +424,8 @@ namespace Vihor
             mScanStart.Text = scanning ? Lang.T("btn.stop") : Lang.T("btn.scan");
             mScanLocal.Text = Lang.T("btn.my_network");
             mScanPorts.Text = Lang.T("menu.scan_ports");
+            mScanExtended.Text = Lang.T("menu.scan_extended");
+            mDiag.Text = Lang.T("menu.diagnostics");
             mSettings.Text = Lang.T("menu.settings");
             mLanguage.Text = Lang.T("menu.language");
             foreach (ToolStripMenuItem i in mLanguage.DropDownItems) i.Checked = (string)i.Tag == Lang.Code;
@@ -574,7 +579,8 @@ namespace Vihor
             {
                 PingTimeoutMs = Settings.PingTimeoutMs,
                 Threads = Settings.Threads,
-                ScanPorts = Settings.ScanPorts
+                ScanPorts = Settings.ScanPorts,
+                ExtendedPorts = Settings.ExtendedPorts,
             });
             scanner.HostFound += h => incoming.Enqueue(h);
             scanner.Progress += (d, t) => { progDone = d; };
@@ -601,7 +607,7 @@ namespace Vihor
         {
             var sel = Selected().ToList();
             if (sel.Count == 0 || scanning) return;
-            var scanner = new Scanner(new ScanOptions { PingTimeoutMs = Settings.PingTimeoutMs, ScanPorts = Settings.ScanPorts });
+            var scanner = new Scanner(new ScanOptions { PingTimeoutMs = Settings.PingTimeoutMs, ScanPorts = Settings.ScanPorts, ExtendedPorts = Settings.ExtendedPorts });
             lblStatus.Text = Lang.T("status.rescanning");
             foreach (var old in sel)
             {
@@ -786,6 +792,19 @@ namespace Vihor
             {
                 MessageBox.Show(ex.Message, AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void SaveDiagnostics()
+        {
+            if (Diag.IsEmpty) { MessageBox.Show(Lang.T("msg.nothing_to_export"), AppInfo.Name); return; }
+            using var dlg = new SaveFileDialog
+            {
+                Filter = "Text (*.txt)|*.txt",
+                FileName = $"vihor-diagnostics-{DateTime.Now:yyyyMMdd-HHmm}.txt"
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            try { Diag.Save(dlg.FileName); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)

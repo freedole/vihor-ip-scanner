@@ -17,6 +17,7 @@ namespace Vihor
         public static int PingTimeoutMs = 700;
         public static int Threads = 256;
         public static bool ScanPorts = true;
+        public static bool ExtendedPorts = false;
         public static int WindowWidth = 1100;
         public static int WindowHeight = 650;
         public static bool WindowMaximized = false;
@@ -37,6 +38,7 @@ namespace Vihor
             PingTimeoutMs = Clamp(GetInt(d, "PingTimeoutMs", PingTimeoutMs), 100, 5000);
             Threads = Clamp(GetInt(d, "Threads", Threads), 8, 512);
             ScanPorts = GetInt(d, "ScanPorts", ScanPorts ? 1 : 0) != 0;
+            ExtendedPorts = GetInt(d, "ExtendedPorts", 0) != 0;
             WindowWidth = Clamp(GetInt(d, "WindowWidth", WindowWidth), 600, 10000);
             WindowHeight = Clamp(GetInt(d, "WindowHeight", WindowHeight), 400, 10000);
             WindowMaximized = GetInt(d, "WindowMaximized", 0) != 0;
@@ -52,6 +54,7 @@ namespace Vihor
                 sb.AppendLine("Language=" + Language);
                 sb.AppendLine("LastRange=" + LastRange);
                 sb.AppendLine("ScanPorts=" + (ScanPorts ? 1 : 0));
+                sb.AppendLine("ExtendedPorts=" + (ExtendedPorts ? 1 : 0));
                 sb.AppendLine("WindowWidth=" + WindowWidth);
                 sb.AppendLine("WindowHeight=" + WindowHeight);
                 sb.AppendLine("WindowMaximized=" + (WindowMaximized ? 1 : 0));

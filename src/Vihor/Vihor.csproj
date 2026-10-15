@@ -10,9 +10,9 @@
     <ApplicationIcon>Resources\vihor.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.2.1</Version>
-    <FileVersion>0.2.1.0</FileVersion>
-    <AssemblyVersion>0.2.1.0</AssemblyVersion>
+    <Version>0.3.0</Version>
+    <FileVersion>0.3.0.0</FileVersion>
+    <AssemblyVersion>0.3.0.0</AssemblyVersion>
     <Company>cyber-security.ba</Company>
     <Product>Vihor IP Scanner</Product>
     <AssemblyTitle>Vihor IP Scanner</AssemblyTitle>

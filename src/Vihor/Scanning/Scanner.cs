@@ -14,9 +14,18 @@ namespace Vihor.Scanning
         public int PingTimeoutMs = 700;
         public int Threads = 256;
         public bool ScanPorts = true;
-        public int PortTimeoutMs = 400;
+        public int PortTimeoutMs = 700;
         public int NameTimeoutMs = 1500;
         public int ProbeTimeoutMs = 2500;
+
+        /// <summary>false = only HTTP, HTTPS, RDP, SMB (gentle default); true = all known ports.</summary>
+        public bool ExtendedPorts = false;
+
+        /// <summary>Max. simultaneous TCP connections for the whole scan (keeps endpoint IPS/AV calm).</summary>
+        public int TcpParallel = 16;
+
+        /// <summary>Pause between two port checks on the same host.</summary>
+        public int PortGapMs = 120;
     }
 
     /// <summary>
@@ -32,10 +41,15 @@ namespace Vihor.Scanning
         private readonly ScanOptions opt;
         private readonly List<LocalSubnet> subnets;
         private readonly HashSet<uint> gateways;
+        private readonly SemaphoreSlim tcpGate;
+
+        /// <summary>Ports checked by default: the management interfaces admins actually open.</summary>
+        private static readonly Service BasicServices = Service.Http | Service.Https | Service.Rdp | Service.Smb;
 
         public Scanner(ScanOptions options)
         {
             opt = options;
+            tcpGate = new SemaphoreSlim(Math.Max(1, opt.TcpParallel));
             subnets = IpRange.GetLocalSubnets();
             gateways = GetGateways();
         }
@@ -43,6 +57,7 @@ namespace Vihor.Scanning
         public async Task RunAsync(IList<uint> targets, CancellationToken ct)
         {
             await OuiDb.LoadAsync().ConfigureAwait(false);
+            Diag.Reset($"scan start: {targets.Count} addresses, threads={opt.Threads}, ports={(opt.ScanPorts ? (opt.ExtendedPorts ? "extended" : "basic") : "off")}, tcpParallel={opt.TcpParallel}");
 
             int done = 0, total = targets.Count;
             using var gate = new SemaphoreSlim(opt.Threads);
@@ -61,7 +76,7 @@ namespace Vihor.Scanning
                         var host = await ScanHostAsync(ip, ct).ConfigureAwait(false);
                         if (host != null && !ct.IsCancellationRequested) HostFound?.Invoke(host);
                     }
-                    catch { /* one bad host must not stop the scan */ }
+                    catch (Exception ex) { Diag.Host(ip, "exception: " + ex.Message); }
                     finally
                     {
                         gate.Release();
@@ -72,6 +87,7 @@ namespace Vihor.Scanning
 
             try { await Task.WhenAll(tasks).ConfigureAwait(false); }
             catch { /* individual tasks swallow their own errors */ }
+            Diag.Log($"scan end: {done}/{total} processed{(ct.IsCancellationRequested ? " (cancelled)" : "")}");
         }
 
         /// <summary>Scans one host. Returns null if the host did not answer.</summary>
@@ -108,10 +124,12 @@ namespace Vihor.Scanning
                 if (host.Mac == null && Native.ReadArpCache().TryGetValue(ip, out var cached)) host.Mac = cached;
             }
 
+            Diag.Host(ip, $"alive  ping={(rtt >= 0 ? rtt + " ms" : "no reply")}  mac={(host.Mac == null ? "-" : host.MacText)}");
+
+            // 1) Names first (DNS PTR + NetBIOS) — quiet, and before anything that could look like a port scan
             var dnsTask = ReverseDnsAsync(addr);
-            var nbTask = NetBios.QueryAsync(addr, opt.NameTimeoutMs);
-            var portTask = opt.ScanPorts ? ScanPortsAsync(addr, ct) : Task.FromResult(Service.None);
-            await Task.WhenAll(dnsTask, nbTask, portTask).ConfigureAwait(false);
+            var nbTask = NetBiosWithRetryAsync(addr);
+            await Task.WhenAll(dnsTask, nbTask).ConfigureAwait(false);
 
             var nb = nbTask.Result;
             host.Name = !string.IsNullOrEmpty(dnsTask.Result) ? dnsTask.Result : nb?.ComputerName ?? "";
@@ -119,14 +137,33 @@ namespace Vihor.Scanning
             if (host.Mac == null && nb?.Mac != null) host.Mac = nb.Mac;
             if (host.IsSelf && string.IsNullOrEmpty(host.Name)) host.Name = Environment.MachineName;
             host.Vendor = OuiDb.Lookup(host.Mac);
-            host.Services = portTask.Result;
+            Diag.Host(ip, $"names  dns={(string.IsNullOrEmpty(dnsTask.Result) ? "-" : dnsTask.Result)}  netbios={nb?.ComputerName ?? "-"}");
 
-            // Describe each open service (page title, server, banner) — in parallel, bounded by a timeout
+            // 2) Services: one port at a time per host, globally limited, with a short pause in between
+            if (opt.ScanPorts && !ct.IsCancellationRequested)
+            {
+                foreach (var p in HostInfo.Ports)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    if (!opt.ExtendedPorts && (BasicServices & p.Svc) == 0) continue;
+                    var state = await CheckPortAsync(addr, p.Port).ConfigureAwait(false);
+                    Diag.Host(ip, $"tcp/{p.Port,-5} {state}");
+                    if (state == "open") host.Services |= p.Svc;
+                    if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
+                }
+            }
+
+            // 3) Describe open services (page title, server, banner) — also through the TCP gate
             if (host.Services != Service.None && !ct.IsCancellationRequested)
             {
-                var probes = HostInfo.Ports.Where(p => host.Has(p.Svc))
-                                           .Select(p => ServiceProbe.DescribeAsync(addr, p, opt.ProbeTimeoutMs));
-                host.Details = (await Task.WhenAll(probes).ConfigureAwait(false)).ToList();
+                var details = new List<ServiceDetail>();
+                foreach (var p in HostInfo.Ports.Where(p => host.Has(p.Svc)))
+                {
+                    await tcpGate.WaitAsync().ConfigureAwait(false);
+                    try { details.Add(await ServiceProbe.DescribeAsync(addr, p, opt.ProbeTimeoutMs).ConfigureAwait(false)); }
+                    finally { tcpGate.Release(); }
+                }
+                host.Details = details;
             }
             return host;
         }
@@ -164,31 +201,40 @@ namespace Vihor.Scanning
             }
         }
 
-        private async Task<Service> ScanPortsAsync(IPAddress addr, CancellationToken ct)
+        private async Task<NetBiosInfo> NetBiosWithRetryAsync(IPAddress addr)
         {
-            var checks = HostInfo.Ports.Select(async p => await IsOpenAsync(addr, p.Port).ConfigureAwait(false) ? p.Svc : Service.None);
-            var results = await Task.WhenAll(checks).ConfigureAwait(false);
-            return results.Aggregate(Service.None, (a, b) => a | b);
+            var r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
+            if (r == null) r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
+            return r;
         }
 
-        private async Task<bool> IsOpenAsync(IPAddress addr, int port)
+        /// <summary>TCP connect check. Returns "open", "closed" (RST), "timeout" or "error: …".</summary>
+        private async Task<string> CheckPortAsync(IPAddress addr, int port)
         {
+            await tcpGate.WaitAsync().ConfigureAwait(false);
             var c = new TcpClient(AddressFamily.InterNetwork);
             try
             {
                 var t = c.ConnectAsync(addr, port);
                 var done = await Task.WhenAny(t, Task.Delay(opt.PortTimeoutMs)).ConfigureAwait(false);
-                if (done != t) { _ = t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted); return false; }
+                if (done != t) { _ = t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted); return "timeout"; }
                 await t.ConfigureAwait(false);
-                return c.Connected;
+                return c.Connected ? "open" : "closed";
             }
-            catch
+            catch (SocketException se)
             {
-                return false;
+                return se.SocketErrorCode == SocketError.ConnectionRefused ? "closed" : "error: " + se.SocketErrorCode;
+            }
+            catch (Exception ex)
+            {
+                var se2 = ex.InnerException as SocketException;
+                if (se2 != null) return se2.SocketErrorCode == SocketError.ConnectionRefused ? "closed" : "error: " + se2.SocketErrorCode;
+                return "error: " + ex.GetType().Name;
             }
             finally
             {
                 c.Close();
+                tcpGate.Release();
             }
         }
 
