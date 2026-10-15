@@ -102,25 +102,6 @@ jobs:
           name: VihorIPScanner-${{ steps.ver.outputs.version }}
           path: dist/*
 
-      # Point the Scoop bucket (bucket/vihor.json) at the new release. Commits made with GITHUB_TOKEN
-      # do not trigger another workflow run.
-      - name: Update Scoop bucket
-        if: steps.rel.outputs.publish == 'true'
-        run: |
-          $v = "${{ steps.ver.outputs.version }}"
-          $zip = "dist/VihorIPScanner-Portable-$v.zip"
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          $m = Get-Content bucket/vihor.json -Raw | ConvertFrom-Json
-          $m.version = $v
-          $m.url = "https://github.com/${{ github.repository }}/releases/download/v$v/VihorIPScanner-Portable-$v.zip"
-          $m.hash = $hash
-          $m | ConvertTo-Json -Depth 10 | Set-Content bucket/vihor.json -Encoding utf8
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bucket/vihor.json
-          git commit -m "Scoop: vihor $v" ; if ($LASTEXITCODE -eq 0) { git push origin HEAD:main }
-          $global:LASTEXITCODE = 0
-
       # Keep the latest Store package in a private draft release (drafts are visible only to maintainers)
       - name: Update private draft with Store package
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -163,3 +144,22 @@ jobs:
           body: |
             **Download:** `VihorIPScanner-Setup-${{ steps.ver.outputs.version }}.exe` (installer) or `VihorIPScanner-Portable-${{ steps.ver.outputs.version }}.zip` (no installation).
             Verify files with `SHA256SUMS.txt`. Requirements: Windows 10/11 (.NET Framework 4.8).
+
+      # Point the Scoop bucket (bucket/vihor.json) at the new release. Commits made with GITHUB_TOKEN
+      # do not trigger another workflow run.
+      - name: Update Scoop bucket
+        if: steps.rel.outputs.publish == 'true'
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $zip = "dist/VihorIPScanner-Portable-$v.zip"
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          $m = Get-Content bucket/vihor.json -Raw | ConvertFrom-Json
+          $m.version = $v
+          $m.url = "https://github.com/${{ github.repository }}/releases/download/v$v/VihorIPScanner-Portable-$v.zip"
+          $m.hash = $hash
+          $m | ConvertTo-Json -Depth 10 | Set-Content bucket/vihor.json -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/vihor.json
+          git commit -m "Scoop: vihor $v" ; if ($LASTEXITCODE -eq 0) { git push origin HEAD:main }
+          $global:LASTEXITCODE = 0
