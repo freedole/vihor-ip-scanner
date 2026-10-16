@@ -1,20 +1,20 @@
 {
-    "version": "0.3.0",
-    "description": "Fast, free and open-source network scanner for Windows (IP, MAC, manufacturer, services)",
-    "homepage": "https://github.com/freedole/vihor-ip-scanner",
-    "license": "MIT",
-    "notes": "Vihor IP Scanner by cyber-security.ba",
-    "url": "https://github.com/freedole/vihor-ip-scanner/releases/download/v0.3.0/VihorIPScanner-Portable-0.3.0.zip",
-    "hash": "8687dd5af896dda0c246ab7f747baed32fa3d22a5bcf4619a13b5ea268a16cf5",
-    "bin": "VihorIPScanner.exe",
-    "shortcuts": [
-        [
-            "VihorIPScanner.exe",
-            "Vihor IP Scanner"
-        ]
-    ],
-    "checkver": "github",
-    "autoupdate": {
-        "url": "https://github.com/freedole/vihor-ip-scanner/releases/download/v$version/VihorIPScanner-Portable-$version.zip"
-    }
+  "version": "0.3.1",
+  "description": "Fast, free and open-source network scanner for Windows (IP, MAC, manufacturer, services)",
+  "homepage": "https://github.com/freedole/vihor-ip-scanner",
+  "license": "MIT",
+  "notes": "Vihor IP Scanner by cyber-security.ba",
+  "url": "https://github.com/freedole/vihor-ip-scanner/releases/download/v0.3.1/VihorIPScanner-Portable-0.3.1.zip",
+  "hash": "49c8a838f8974651df76618202bd62f487c573d8a323aef13c68264cb5d87250",
+  "bin": "VihorIPScanner.exe",
+  "shortcuts": [
+    [
+      "VihorIPScanner.exe",
+      "Vihor IP Scanner"
+    ]
+  ],
+  "checkver": "github",
+  "autoupdate": {
+    "url": "https://github.com/freedole/vihor-ip-scanner/releases/download/v$version/VihorIPScanner-Portable-$version.zip"
+  }
 }
