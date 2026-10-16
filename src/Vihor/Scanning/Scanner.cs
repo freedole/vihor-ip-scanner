@@ -137,7 +137,7 @@ namespace Vihor.Scanning
             if (host.Mac == null && nb?.Mac != null) host.Mac = nb.Mac;
             if (host.IsSelf && string.IsNullOrEmpty(host.Name)) host.Name = Environment.MachineName;
             host.Vendor = OuiDb.Lookup(host.Mac);
-            Diag.Host(ip, $"names  dns={(string.IsNullOrEmpty(dnsTask.Result) ? "-" : dnsTask.Result)}  netbios={nb?.ComputerName ?? "-"}");
+            Diag.Host(ip, $"names  dns={(string.IsNullOrEmpty(dnsTask.Result) ? "-" : dnsTask.Result)}  netbios={nb?.ComputerName ?? "-"}{(nb != null ? " (" + nb.Source + ")" : "")}");
 
             // 2) Services: one port at a time per host, globally limited, with a short pause in between
             if (opt.ScanPorts && !ct.IsCancellationRequested)
@@ -205,6 +205,10 @@ namespace Vihor.Scanning
         {
             var r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
             if (r == null) r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
+            if (r != null) { r.Source = "udp"; return r; }
+            // Fallback: Windows NetBIOS API (like "nbtstat -A") — not affected by app firewall rules
+            r = await Task.Run(() => NetBiosApi.Query(addr)).ConfigureAwait(false);
+            if (r != null) r.Source = "api";
             return r;
         }
 

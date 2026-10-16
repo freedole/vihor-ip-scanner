@@ -11,6 +11,7 @@ namespace Vihor.Scanning
         public string ComputerName;
         public string Workgroup;
         public byte[] Mac;
+        public string Source = "";
     }
 
     /// <summary>NetBIOS Node Status (NBSTAT) query over UDP/137 — returns computer name, workgroup and MAC.</summary>

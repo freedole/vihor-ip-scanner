@@ -101,10 +101,15 @@ Name: "vietnamese"; MessagesFile: "Languages\Vietnamese.isl"
 NetMissing=Vihor IP Scanner requires Microsoft .NET Framework 4.8, which is not installed on this computer.%n%nOpen the download page now?
 serbianlatin.NetMissing=Vihor IP Scanner zahteva Microsoft .NET Framework 4.8, koji nije instaliran na ovom računaru.%n%nOtvoriti stranicu za preuzimanje?
 croatian.NetMissing=Vihor IP Scanner zahtijeva Microsoft .NET Framework 4.8, koji nije instaliran na ovom računalu.%n%nOtvoriti stranicu za preuzimanje?
+FirewallTask=Allow Vihor IP Scanner through Windows Firewall (needed to read device names via NetBIOS)
+serbianlatin.FirewallTask=Dozvoli Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja preko NetBIOS-a)
+croatian.FirewallTask=Dopusti Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja putem NetBIOS-a)
+bosnian.FirewallTask=Dozvoli Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja preko NetBIOS-a)
 bosnian.NetMissing=Vihor IP Scanner zahtijeva Microsoft .NET Framework 4.8, koji nije instaliran na ovom računaru.%n%nOtvoriti stranicu za preuzimanje?
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "firewall"; Description: "{cm:FirewallTask}"
 
 [Files]
 Source: "{#BinDir}\{#AppExe}";        DestDir: "{app}"; Flags: ignoreversion
@@ -120,7 +125,13 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}";  Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+; Inbound rule for this program only, so NetBIOS name replies (UDP) are not dropped on domain/public networks
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Vihor IP Scanner"""; Flags: runhidden waituntilterminated; Tasks: firewall
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Vihor IP Scanner"" dir=in action=allow program=""{app}\{#AppExe}"" enable=yes profile=any"; Flags: runhidden waituntilterminated; Tasks: firewall
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Vihor IP Scanner"""; Flags: runhidden waituntilterminated; RunOnceId: "VihorFirewallRule"
 
 [UninstallDelete]
 Type: files; Name: "{app}\vihor.ini"
