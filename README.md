@@ -14,6 +14,16 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
+<p align="center">
+  <a href="https://apps.microsoft.com/detail/9NHGBPBZZLCN"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Get it from Microsoft"></a>
+  &nbsp;
+  <a href="https://alternativeto.net/software/vihor-ip-scanner/about/?utm_source=badge&utm_medium=referral"><img src="https://alternativeto.net/static/badges/badge-compact-color.svg" width="185" alt="Vihor IP Scanner | AlternativeTo"></a>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot-0.3.2.png" width="760" alt="Vihor IP Scanner screenshot">
+</p>
+
 > **Vihor** /ˈviː.hɔr/ — Slavic for *whirlwind*. Made in Bosnia and Herzegovina.
 
 ## Features
@@ -31,7 +41,9 @@
 
 ## Download
 
-Get the installer or the portable ZIP from the **[latest release](https://github.com/freedole/vihor-ip-scanner/releases/latest)**.
+- **Microsoft Store** (recommended, no SmartScreen warning): [Vihor IP Scanner](https://apps.microsoft.com/detail/9NHGBPBZZLCN)
+- **Installer or portable ZIP:** [latest release](https://github.com/freedole/vihor-ip-scanner/releases/latest) — also mirrored on [SourceForge](https://sourceforge.net/projects/vihor-ip-scanner/)
+
 Every release lists SHA-256 checksums in `SHA256SUMS.txt`.
 
 **Scoop:**
@@ -43,7 +55,7 @@ scoop install vihor
 
 **Requirements:** Windows 10 / 11 (or Windows 7 SP1+ with .NET Framework 4.8).
 
-> Until code signing is in place, Windows SmartScreen may show *"Windows protected your PC"*.
+> Until code signing is in place, the installer and ZIP from GitHub/SourceForge may trigger Windows SmartScreen: *"Windows protected your PC"*.
 > Click **More info → Run anyway**. You can verify the file against the published SHA-256 checksum and review the source code here.
 
 ## Keyboard shortcuts
