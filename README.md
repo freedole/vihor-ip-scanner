@@ -37,6 +37,9 @@
 - **Copy** IP, name, MAC, manufacturer or whole rows · **Export** to CSV (Excel-friendly) and HTML
 - **Flexible ranges** — `192.168.1.1-254`, `192.168.1.0/24`, `10.0.0.1-10.0.3.254`, comma-separated lists
 - **Languages** — English, Srpski, Hrvatski, Bosanski (installer in 40+ languages)
+- **Options** — scanning speed from fast to thorough, choose which services to detect, add your own TCP ports
+- **Scan comparison** — new devices since the last scan are highlighted, missing ones are listed in grey
+- **Dark theme** — follows Windows or can be set manually
 - **Lightweight** — ~1 MB, no admin rights needed to run, no telemetry, no ads, no internet connection required
 
 ## Download

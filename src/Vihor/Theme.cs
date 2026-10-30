@@ -103,7 +103,10 @@ namespace Vihor
                         }
                         break;
                     default:
-                        if (!(c is PictureBox)) { c.BackColor = Panel; c.ForeColor = Fore; }
+                        if (c is PictureBox) break;
+                        c.BackColor = Panel;
+                        if (!(c is Label l && l.Tag as string == "muted")) c.ForeColor = Fore;
+                        else c.ForeColor = Muted;
                         break;
                 }
                 if (c.HasChildren) ApplyControls(c.Controls);
@@ -137,9 +140,10 @@ namespace Vihor
             if (!lv.IsHandleCreated) { lv.HandleCreated += (s, e) => DarkScroll(lv); return; }
             try
             {
-                SetWindowTheme(lv.Handle, Dark ? "DarkMode_Explorer" : "Explorer", null);
+                // light: null/null restores the default look the app always had
+                SetWindowTheme(lv.Handle, Dark ? "DarkMode_Explorer" : null, null);
                 var header = SendMessage(lv.Handle, 0x101F /* LVM_GETHEADER */, IntPtr.Zero, IntPtr.Zero);
-                if (header != IntPtr.Zero) SetWindowTheme(header, Dark ? "DarkMode_ItemsView" : "ItemsView", null);
+                if (header != IntPtr.Zero) SetWindowTheme(header, Dark ? "DarkMode_ItemsView" : null, null);
             }
             catch { }
         }
