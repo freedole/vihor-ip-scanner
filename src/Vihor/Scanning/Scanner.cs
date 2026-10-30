@@ -12,20 +12,46 @@ namespace Vihor.Scanning
     internal sealed class ScanOptions
     {
         public int PingTimeoutMs = 700;
+        public int PingAttempts = 2;
         public int Threads = 256;
         public bool ScanPorts = true;
         public int PortTimeoutMs = 700;
         public int NameTimeoutMs = 1500;
+        public int NameAttempts = 2;
         public int ProbeTimeoutMs = 2500;
+        /// <summary>Extra ARP round after a short wait, for devices that wake up slowly (phones, IoT).</summary>
+        public bool ExtraArp = false;
 
-        /// <summary>false = only HTTP, HTTPS, RDP, SMB (gentle default); true = all known ports.</summary>
-        public bool ExtendedPorts = false;
+        /// <summary>Known service ports to check (HostInfo.Ports).</summary>
+        public HashSet<int> ServicePorts = new HashSet<int>(Settings.DefaultServicePorts);
+
+        /// <summary>User-defined ports (not in HostInfo.Ports).</summary>
+        public List<int> CustomPorts = new List<int>();
 
         /// <summary>Max. simultaneous TCP connections for the whole scan (keeps endpoint IPS/AV calm).</summary>
         public int TcpParallel = 16;
 
         /// <summary>Pause between two port checks on the same host.</summary>
         public int PortGapMs = 120;
+
+        public int Level = 3;
+
+        /// <summary>Speed slider: 1 = fast … 3 = balanced (0.3.x behaviour) … 5 = thorough.</summary>
+        public static ScanOptions FromSettings()
+        {
+            var o = new ScanOptions { Level = Math.Max(1, Math.Min(5, Settings.Speed)) };
+            switch (o.Level)
+            {
+                case 1: o.Threads = 384; o.PingTimeoutMs = 400; o.PingAttempts = 1; o.PortTimeoutMs = 400; o.NameTimeoutMs = 800; o.NameAttempts = 1; o.ProbeTimeoutMs = 1500; o.TcpParallel = 32; o.PortGapMs = 0; break;
+                case 2: o.Threads = 320; o.PingTimeoutMs = 550; o.PingAttempts = 2; o.PortTimeoutMs = 550; o.NameTimeoutMs = 1200; o.NameAttempts = 2; o.ProbeTimeoutMs = 2000; o.TcpParallel = 24; o.PortGapMs = 60; break;
+                case 4: o.Threads = 192; o.PingTimeoutMs = 1000; o.PingAttempts = 3; o.PortTimeoutMs = 1000; o.NameTimeoutMs = 2400; o.NameAttempts = 3; o.ProbeTimeoutMs = 3500; o.TcpParallel = 12; o.PortGapMs = 150; o.ExtraArp = true; break;
+                case 5: o.Threads = 128; o.PingTimeoutMs = 1500; o.PingAttempts = 4; o.PortTimeoutMs = 1500; o.NameTimeoutMs = 3000; o.NameAttempts = 3; o.ProbeTimeoutMs = 5000; o.TcpParallel = 8; o.PortGapMs = 200; o.ExtraArp = true; break;
+            }
+            o.ScanPorts = Settings.ScanPorts;
+            o.ServicePorts = new HashSet<int>(Settings.ServicePorts);
+            o.CustomPorts = Settings.CustomPorts.Where(p => !HostInfo.Ports.Any(k => k.Port == p)).ToList();
+            return o;
+        }
     }
 
     /// <summary>
@@ -43,9 +69,6 @@ namespace Vihor.Scanning
         private readonly HashSet<uint> gateways;
         private readonly SemaphoreSlim tcpGate;
 
-        /// <summary>Ports checked by default: the management interfaces admins actually open.</summary>
-        private static readonly Service BasicServices = Service.Http | Service.Https | Service.Rdp | Service.Smb;
-
         public Scanner(ScanOptions options)
         {
             opt = options;
@@ -57,7 +80,8 @@ namespace Vihor.Scanning
         public async Task RunAsync(IList<uint> targets, CancellationToken ct)
         {
             await OuiDb.LoadAsync().ConfigureAwait(false);
-            Diag.Reset($"scan start: {targets.Count} addresses, threads={opt.Threads}, ports={(opt.ScanPorts ? (opt.ExtendedPorts ? "extended" : "basic") : "off")}, tcpParallel={opt.TcpParallel}");
+            Diag.Reset($"scan start: {targets.Count} addresses, level={opt.Level}, threads={opt.Threads}, ping={opt.PingTimeoutMs}x{opt.PingAttempts}, " +
+                       $"ports={(opt.ScanPorts ? string.Join(",", opt.ServicePorts.Concat(opt.CustomPorts)) : "off")}, tcpParallel={opt.TcpParallel}");
 
             int done = 0, total = targets.Count;
             using var gate = new SemaphoreSlim(opt.Threads);
@@ -122,6 +146,11 @@ namespace Vihor.Scanning
             {
                 host.Mac = await Task.Run(() => Native.ResolveMac(addr)).ConfigureAwait(false);
                 if (host.Mac == null && Native.ReadArpCache().TryGetValue(ip, out var cached)) host.Mac = cached;
+                if (host.Mac == null && opt.ExtraArp)
+                {
+                    await Task.Delay(400).ConfigureAwait(false);
+                    host.Mac = await Task.Run(() => Native.ResolveMac(addr)).ConfigureAwait(false);
+                }
             }
 
             Diag.Host(ip, $"alive  ping={(rtt >= 0 ? rtt + " ms" : "no reply")}  mac={(host.Mac == null ? "-" : host.MacText)}");
@@ -145,10 +174,18 @@ namespace Vihor.Scanning
                 foreach (var p in HostInfo.Ports)
                 {
                     if (ct.IsCancellationRequested) break;
-                    if (!opt.ExtendedPorts && (BasicServices & p.Svc) == 0) continue;
+                    if (!opt.ServicePorts.Contains(p.Port)) continue;
                     var state = await CheckPortAsync(addr, p.Port).ConfigureAwait(false);
                     Diag.Host(ip, $"tcp/{p.Port,-5} {state}");
                     if (state == "open") host.Services |= p.Svc;
+                    if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
+                }
+                foreach (var port in opt.CustomPorts)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    var state = await CheckPortAsync(addr, port).ConfigureAwait(false);
+                    Diag.Host(ip, $"tcp/{port,-5} {state} (custom)");
+                    if (state == "open") { host.Services |= Service.Custom; host.CustomOpen.Add(port); }
                     if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
                 }
             }
@@ -163,6 +200,12 @@ namespace Vihor.Scanning
                     try { details.Add(await ServiceProbe.DescribeAsync(addr, p, opt.ProbeTimeoutMs).ConfigureAwait(false)); }
                     finally { tcpGate.Release(); }
                 }
+                foreach (var port in host.CustomOpen)
+                {
+                    await tcpGate.WaitAsync().ConfigureAwait(false);
+                    try { details.Add(await ServiceProbe.DescribeCustomAsync(addr, port, opt.ProbeTimeoutMs).ConfigureAwait(false)); }
+                    finally { tcpGate.Release(); }
+                }
                 host.Details = details;
             }
             return host;
@@ -173,11 +216,13 @@ namespace Vihor.Scanning
             try
             {
                 using var p = new Ping();
-                var r = await p.SendPingAsync(addr, opt.PingTimeoutMs).ConfigureAwait(false);
-                if (r.Status == IPStatus.Success) return r.RoundtripTime;
-                // Some stacks need a second probe after ARP resolution
-                r = await p.SendPingAsync(addr, opt.PingTimeoutMs).ConfigureAwait(false);
-                return r.Status == IPStatus.Success ? r.RoundtripTime : -1;
+                // Some stacks need a second probe after ARP resolution; higher levels try more often
+                for (int i = 0; i < Math.Max(1, opt.PingAttempts); i++)
+                {
+                    var r = await p.SendPingAsync(addr, opt.PingTimeoutMs).ConfigureAwait(false);
+                    if (r.Status == IPStatus.Success) return r.RoundtripTime;
+                }
+                return -1;
             }
             catch
             {
@@ -203,8 +248,10 @@ namespace Vihor.Scanning
 
         private async Task<NetBiosInfo> NetBiosWithRetryAsync(IPAddress addr)
         {
-            var r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
-            if (r == null) r = await NetBios.QueryAsync(addr, opt.NameTimeoutMs / 2).ConfigureAwait(false);
+            NetBiosInfo r = null;
+            int attempts = Math.Max(1, opt.NameAttempts);
+            for (int i = 0; i < attempts && r == null; i++)
+                r = await NetBios.QueryAsync(addr, Math.Max(300, opt.NameTimeoutMs / attempts)).ConfigureAwait(false);
             if (r != null) { r.Source = "udp"; return r; }
             // Fallback: Windows NetBIOS API (like "nbtstat -A") — not affected by app firewall rules
             r = await Task.Run(() => NetBiosApi.Query(addr)).ConfigureAwait(false);

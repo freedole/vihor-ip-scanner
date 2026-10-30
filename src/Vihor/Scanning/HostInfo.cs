@@ -19,6 +19,7 @@ namespace Vihor.Scanning
         Printer = 1 << 9,
         Https8443 = 1 << 10,
         Proxmox = 1 << 11,
+        Custom = 1 << 12,   // user-defined port (Options)
     }
 
     internal sealed class PortDef
@@ -43,12 +44,13 @@ namespace Vihor.Scanning
         public string Title = "";   // HTML <title>
         public string Server = "";  // HTTP "Server" header
         public string Banner = "";  // SSH / FTP / VNC greeting
+        internal bool Responded;     // an HTTP(S) server answered (used for custom ports)
 
         public string Text
         {
             get
             {
-                var name = Def.IsWeb && Def.Port != 80 && Def.Port != 443 ? $"{Def.Label} :{Def.Port}" : Def.Label;
+                var name = (Def.IsWeb && Def.Port != 80 && Def.Port != 443) || Def.Svc == Service.Custom ? $"{Def.Label} :{Def.Port}" : Def.Label;
                 string info;
                 if (!string.IsNullOrEmpty(Title)) info = string.IsNullOrEmpty(Server) ? Title : $"{Title} ({Server})";
                 else if (!string.IsNullOrEmpty(Server)) info = Server;
@@ -79,6 +81,14 @@ namespace Vihor.Scanning
         public bool IsSelf;
         public bool IsGateway;
 
+        /// <summary>Open user-defined ports (Options → my ports).</summary>
+        public List<int> CustomOpen = new List<int>();
+
+        /// <summary>Compared with the previous scan of the same range: not seen last time.</summary>
+        public bool IsNew;
+        /// <summary>Placeholder row for a device seen last time but not found now.</summary>
+        public bool IsMissing;
+
         public string MacText => Mac == null ? "" : BitConverter.ToString(Mac).Replace('-', ':');
 
         public static readonly PortDef[] Ports =
@@ -105,10 +115,18 @@ namespace Vihor.Scanning
                 foreach (var p in Ports)
                     if ((Services & p.Svc) != 0)
                         list.Add(p.IsWeb && p.Port != 80 && p.Port != 443 ? $"{p.Label}:{p.Port}" : p.Label);
+                foreach (var port in CustomOpen)
+                {
+                    var d = Details.Find(x => x.Def.Svc == Service.Custom && x.Def.Port == port);
+                    list.Add((d != null && d.Def.IsWeb ? d.Def.Label : "TCP") + ":" + port);
+                }
                 return string.Join(", ", list);
             }
         }
 
         public bool Has(Service s) => (Services & s) != 0;
+
+        /// <summary>Key used to recognise the same device between scans: MAC if known, otherwise IP.</summary>
+        public string Key => Mac != null ? MacText : "ip:" + IpText;
     }
 }

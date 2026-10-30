@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Vihor
@@ -14,10 +15,22 @@ namespace Vihor
     {
         public static string Language = "en";
         public static string LastRange = "";
-        public static int PingTimeoutMs = 700;
-        public static int Threads = 256;
         public static bool ScanPorts = true;
-        public static bool ExtendedPorts = false;
+
+        /// <summary>1 = fastest … 5 = most thorough (3 = balanced default).</summary>
+        public static int Speed = 3;
+
+        /// <summary>Known service ports that are checked (see HostInfo.Ports).</summary>
+        public static readonly int[] DefaultServicePorts = { 80, 443, 3389, 445, 22, 21, 9100 };
+        public static List<int> ServicePorts = new List<int>(DefaultServicePorts); // must come after DefaultServicePorts
+
+        /// <summary>Extra TCP ports chosen by the user, e.g. 8123 (Home Assistant).</summary>
+        public static List<int> CustomPorts = new List<int>();
+
+        public static bool ShowWorkgroup = true;
+
+        /// <summary>"system", "light" or "dark".</summary>
+        public static string Theme = "system";
         public static int WindowWidth = 1100;
         public static int WindowHeight = 650;
         public static bool WindowMaximized = false;
@@ -35,10 +48,14 @@ namespace Vihor
             if (d.TryGetValue("Language", out var l) && !string.IsNullOrWhiteSpace(l)) Language = Lang.Normalize(l);
             else Language = Lang.Normalize(System.Globalization.CultureInfo.CurrentUICulture.Name); // e.g. Store install: follow Windows
             if (d.TryGetValue("LastRange", out var r)) LastRange = r;
-            PingTimeoutMs = Clamp(GetInt(d, "PingTimeoutMs", PingTimeoutMs), 100, 5000);
-            Threads = Clamp(GetInt(d, "Threads", Threads), 8, 512);
             ScanPorts = GetInt(d, "ScanPorts", ScanPorts ? 1 : 0) != 0;
-            ExtendedPorts = GetInt(d, "ExtendedPorts", 0) != 0;
+            Speed = Clamp(GetInt(d, "Speed", Speed), 1, 5);
+            if (d.TryGetValue("ServicePorts", out var sp)) ServicePorts = ParsePorts(sp);
+            else if (GetInt(d, "ExtendedPorts", 0) != 0) // 0.3.x "extended" setting -> all known services
+                ServicePorts = Scanning.HostInfo.Ports.Select(p => p.Port).ToList();
+            if (d.TryGetValue("CustomPorts", out var cp)) CustomPorts = ParsePorts(cp);
+            ShowWorkgroup = GetInt(d, "ShowWorkgroup", 1) != 0;
+            if (d.TryGetValue("Theme", out var th) && (th == "light" || th == "dark" || th == "system")) Theme = th;
             WindowWidth = Clamp(GetInt(d, "WindowWidth", WindowWidth), 600, 10000);
             WindowHeight = Clamp(GetInt(d, "WindowHeight", WindowHeight), 400, 10000);
             WindowMaximized = GetInt(d, "WindowMaximized", 0) != 0;
@@ -54,7 +71,11 @@ namespace Vihor
                 sb.AppendLine("Language=" + Language);
                 sb.AppendLine("LastRange=" + LastRange);
                 sb.AppendLine("ScanPorts=" + (ScanPorts ? 1 : 0));
-                sb.AppendLine("ExtendedPorts=" + (ExtendedPorts ? 1 : 0));
+                sb.AppendLine("Speed=" + Speed);
+                sb.AppendLine("ServicePorts=" + string.Join(",", ServicePorts));
+                sb.AppendLine("CustomPorts=" + string.Join(",", CustomPorts));
+                sb.AppendLine("ShowWorkgroup=" + (ShowWorkgroup ? 1 : 0));
+                sb.AppendLine("Theme=" + Theme);
                 sb.AppendLine("WindowWidth=" + WindowWidth);
                 sb.AppendLine("WindowHeight=" + WindowHeight);
                 sb.AppendLine("WindowMaximized=" + (WindowMaximized ? 1 : 0));
@@ -82,6 +103,15 @@ namespace Vihor
 
         private static int GetInt(Dictionary<string, string> d, string key, int def)
             => d.TryGetValue(key, out var s) && int.TryParse(s, out var v) ? v : def;
+
+        /// <summary>"8123, 9090 8443" -> [8123, 9090, 8443]; ignores anything that is not a valid TCP port.</summary>
+        public static List<int> ParsePorts(string text)
+        {
+            var list = new List<int>();
+            foreach (var part in (text ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                if (int.TryParse(part.Trim(), out var p) && p > 0 && p <= 65535 && !list.Contains(p)) list.Add(p);
+            return list;
+        }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : v > max ? max : v;
     }

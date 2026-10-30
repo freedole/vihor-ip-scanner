@@ -22,6 +22,20 @@ namespace Vihor.Scanning
             return Task.FromResult(new ServiceDetail { Def = def });
         }
 
+        /// <summary>
+        /// User-defined port: try HTTP, then HTTPS (most custom ports are web UIs: Home Assistant, Cockpit, …);
+        /// otherwise read a text banner if the service sends one.
+        /// </summary>
+        public static async Task<ServiceDetail> DescribeCustomAsync(IPAddress ip, int port, int timeoutMs)
+        {
+            foreach (var scheme in new[] { "http", "https" })
+            {
+                var web = await Task.Run(() => Web(ip, new PortDef(Service.Custom, port, scheme.ToUpperInvariant(), scheme), timeoutMs)).ConfigureAwait(false);
+                if (web.Responded) return web;
+            }
+            return await BannerAsync(ip, new PortDef(Service.Custom, port, "TCP"), timeoutMs).ConfigureAwait(false);
+        }
+
         private static ServiceDetail Web(IPAddress ip, PortDef def, int timeoutMs)
         {
             var d = new ServiceDetail { Def = def };
@@ -46,6 +60,7 @@ namespace Vihor.Scanning
 
                 using (resp)
                 {
+                    d.Responded = true;
                     d.Server = Clean(resp.Headers["Server"], 40);
                     using var s = resp.GetResponseStream();
                     if (s == null) return d;
