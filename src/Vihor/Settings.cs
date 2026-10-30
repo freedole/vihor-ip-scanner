@@ -27,6 +27,18 @@ namespace Vihor
         /// <summary>Extra TCP ports chosen by the user, e.g. 8123 (Home Assistant).</summary>
         public static List<int> CustomPorts = new List<int>();
 
+        /// <summary>Port ranges as typed, e.g. "3000-3500, 4000-5000".</summary>
+        public static string PortRanges = "";
+        /// <summary>Use the port ranges only for Rescan / Advanced rescan, not for scanning the whole range.</summary>
+        public static bool RangesOnlyRescan = true;
+        /// <summary>"Don't show again" for the large port range warning.</summary>
+        public static bool HideRangeWarning = false;
+
+        /// <summary>Hard limit for the number of ports from ranges.</summary>
+        public const int MaxRangePorts = 5000;
+        /// <summary>Above this many range ports the user is warned.</summary>
+        public const int WarnRangePorts = 1000;
+
         public static bool ShowWorkgroup = true;
 
         /// <summary>"system", "light" or "dark".</summary>
@@ -54,6 +66,9 @@ namespace Vihor
             else if (GetInt(d, "ExtendedPorts", 0) != 0) // 0.3.x "extended" setting -> all known services
                 ServicePorts = Scanning.HostInfo.Ports.Select(p => p.Port).ToList();
             if (d.TryGetValue("CustomPorts", out var cp)) CustomPorts = ParsePorts(cp);
+            if (d.TryGetValue("PortRanges", out var pr)) PortRanges = pr;
+            RangesOnlyRescan = GetInt(d, "RangesOnlyRescan", 1) != 0;
+            HideRangeWarning = GetInt(d, "HideRangeWarning", 0) != 0;
             ShowWorkgroup = GetInt(d, "ShowWorkgroup", 1) != 0;
             if (d.TryGetValue("Theme", out var th) && (th == "light" || th == "dark" || th == "system")) Theme = th;
             WindowWidth = Clamp(GetInt(d, "WindowWidth", WindowWidth), 600, 10000);
@@ -74,6 +89,9 @@ namespace Vihor
                 sb.AppendLine("Speed=" + Speed);
                 sb.AppendLine("ServicePorts=" + string.Join(",", ServicePorts));
                 sb.AppendLine("CustomPorts=" + string.Join(",", CustomPorts));
+                sb.AppendLine("PortRanges=" + PortRanges);
+                sb.AppendLine("RangesOnlyRescan=" + (RangesOnlyRescan ? 1 : 0));
+                sb.AppendLine("HideRangeWarning=" + (HideRangeWarning ? 1 : 0));
                 sb.AppendLine("ShowWorkgroup=" + (ShowWorkgroup ? 1 : 0));
                 sb.AppendLine("Theme=" + Theme);
                 sb.AppendLine("WindowWidth=" + WindowWidth);
@@ -111,6 +129,33 @@ namespace Vihor
             foreach (var part in (text ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
                 if (int.TryParse(part.Trim(), out var p) && p > 0 && p <= 65535 && !list.Contains(p)) list.Add(p);
             return list;
+        }
+
+        /// <summary>
+        /// "3000-3500, 4000-5000, 8443" -> all ports in the ranges (single ports allowed too), no duplicates.
+        /// Returns null and sets <paramref name="error"/> to the offending part if the text is invalid.
+        /// </summary>
+        public static List<int> ParseRanges(string text, out string error)
+        {
+            error = null;
+            var set = new SortedSet<int>();
+            foreach (var raw in (text ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var part = raw.Trim();
+                if (part.Length == 0) continue;
+                var ends = part.Split(new[] { '-', '–' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
+                if (ends.Length == 1 && int.TryParse(ends[0], out var single) && single > 0 && single <= 65535) { set.Add(single); continue; }
+                if (ends.Length == 2 && int.TryParse(ends[0], out var a) && int.TryParse(ends[1], out var b) &&
+                    a > 0 && b > 0 && a <= 65535 && b <= 65535)
+                {
+                    if (a > b) { var t = a; a = b; b = t; }
+                    for (int p = a; p <= b; p++) set.Add(p);
+                    continue;
+                }
+                error = part;
+                return null;
+            }
+            return set.ToList();
         }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : v > max ? max : v;

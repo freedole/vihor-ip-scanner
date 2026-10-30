@@ -9,6 +9,35 @@ using System.Threading.Tasks;
 
 namespace Vihor.Scanning
 {
+    /// <summary>What the user sets in Options (or for one device in Advanced rescan).</summary>
+    internal sealed class ScanProfile
+    {
+        public int Speed = 3;
+        public List<int> ServicePorts = new List<int>(Settings.DefaultServicePorts);
+        public List<int> CustomPorts = new List<int>();
+        public string PortRanges = "";
+        public bool RangesOnlyRescan = true;
+
+        public static ScanProfile FromSettings() => new ScanProfile
+        {
+            Speed = Settings.Speed,
+            ServicePorts = new List<int>(Settings.ServicePorts),
+            CustomPorts = new List<int>(Settings.CustomPorts),
+            PortRanges = Settings.PortRanges,
+            RangesOnlyRescan = Settings.RangesOnlyRescan,
+        };
+
+        public void SaveToSettings()
+        {
+            Settings.Speed = Speed;
+            Settings.ServicePorts = new List<int>(ServicePorts);
+            Settings.CustomPorts = new List<int>(CustomPorts);
+            Settings.PortRanges = PortRanges ?? "";
+            Settings.RangesOnlyRescan = RangesOnlyRescan;
+            Settings.Save();
+        }
+    }
+
     internal sealed class ScanOptions
     {
         public int PingTimeoutMs = 700;
@@ -25,8 +54,14 @@ namespace Vihor.Scanning
         /// <summary>Known service ports to check (HostInfo.Ports).</summary>
         public HashSet<int> ServicePorts = new HashSet<int>(Settings.DefaultServicePorts);
 
-        /// <summary>User-defined ports (not in HostInfo.Ports).</summary>
+        /// <summary>User-defined single ports (not in HostInfo.Ports), checked one by one.</summary>
         public List<int> CustomPorts = new List<int>();
+
+        /// <summary>Ports from the user's port ranges, checked in parallel.</summary>
+        public List<int> RangePorts = new List<int>();
+
+        /// <summary>Max. simultaneous connections for port ranges (whole scan).</summary>
+        public int RangeParallel = 128;
 
         /// <summary>Max. simultaneous TCP connections for the whole scan (keeps endpoint IPS/AV calm).</summary>
         public int TcpParallel = 16;
@@ -37,9 +72,12 @@ namespace Vihor.Scanning
         public int Level = 3;
 
         /// <summary>Speed slider: 1 = fast … 3 = balanced (0.3.x behaviour) … 5 = thorough.</summary>
-        public static ScanOptions FromSettings()
+        /// <summary>Options from Settings. <paramref name="rescan"/>: also use port ranges when they are "rescan only".</summary>
+        public static ScanOptions FromSettings(bool rescan = false) => From(ScanProfile.FromSettings(), rescan);
+
+        public static ScanOptions From(ScanProfile p, bool rescan)
         {
-            var o = new ScanOptions { Level = Math.Max(1, Math.Min(5, Settings.Speed)) };
+            var o = new ScanOptions { Level = Math.Max(1, Math.Min(5, p.Speed)) };
             switch (o.Level)
             {
                 case 1: o.Threads = 384; o.PingTimeoutMs = 400; o.PingAttempts = 1; o.PortTimeoutMs = 400; o.NameTimeoutMs = 800; o.NameAttempts = 1; o.ProbeTimeoutMs = 1500; o.TcpParallel = 32; o.PortGapMs = 0; break;
@@ -47,9 +85,15 @@ namespace Vihor.Scanning
                 case 4: o.Threads = 192; o.PingTimeoutMs = 1000; o.PingAttempts = 3; o.PortTimeoutMs = 1000; o.NameTimeoutMs = 2400; o.NameAttempts = 3; o.ProbeTimeoutMs = 3500; o.TcpParallel = 12; o.PortGapMs = 150; o.ExtraArp = true; break;
                 case 5: o.Threads = 128; o.PingTimeoutMs = 1500; o.PingAttempts = 4; o.PortTimeoutMs = 1500; o.NameTimeoutMs = 3000; o.NameAttempts = 3; o.ProbeTimeoutMs = 5000; o.TcpParallel = 8; o.PortGapMs = 200; o.ExtraArp = true; break;
             }
-            o.ScanPorts = Settings.ScanPorts;
-            o.ServicePorts = new HashSet<int>(Settings.ServicePorts);
-            o.CustomPorts = Settings.CustomPorts.Where(p => !HostInfo.Ports.Any(k => k.Port == p)).ToList();
+            o.ScanPorts = Settings.ScanPorts || rescan;
+            o.ServicePorts = new HashSet<int>(p.ServicePorts);
+            o.CustomPorts = p.CustomPorts.Where(x => !HostInfo.Ports.Any(k => k.Port == x)).ToList();
+            if (rescan || !p.RangesOnlyRescan)
+            {
+                var ranges = Settings.ParseRanges(p.PortRanges, out _) ?? new List<int>();
+                o.RangePorts = ranges.Where(x => !o.ServicePorts.Contains(x) && !o.CustomPorts.Contains(x) && !HostInfo.Ports.Any(k => k.Port == x))
+                                     .Take(Settings.MaxRangePorts).ToList();
+            }
             return o;
         }
     }
@@ -68,11 +112,13 @@ namespace Vihor.Scanning
         private readonly List<LocalSubnet> subnets;
         private readonly HashSet<uint> gateways;
         private readonly SemaphoreSlim tcpGate;
+        private readonly SemaphoreSlim rangeGate;
 
         public Scanner(ScanOptions options)
         {
             opt = options;
             tcpGate = new SemaphoreSlim(Math.Max(1, opt.TcpParallel));
+            rangeGate = new SemaphoreSlim(Math.Max(1, opt.RangeParallel));
             subnets = IpRange.GetLocalSubnets();
             gateways = GetGateways();
         }
@@ -81,7 +127,7 @@ namespace Vihor.Scanning
         {
             await OuiDb.LoadAsync().ConfigureAwait(false);
             Diag.Reset($"scan start: {targets.Count} addresses, level={opt.Level}, threads={opt.Threads}, ping={opt.PingTimeoutMs}x{opt.PingAttempts}, " +
-                       $"ports={(opt.ScanPorts ? string.Join(",", opt.ServicePorts.Concat(opt.CustomPorts)) : "off")}, tcpParallel={opt.TcpParallel}");
+                       $"ports={(opt.ScanPorts ? string.Join(",", opt.ServicePorts.Concat(opt.CustomPorts)) : "off")}, rangePorts={opt.RangePorts.Count}, tcpParallel={opt.TcpParallel}");
 
             int done = 0, total = targets.Count;
             using var gate = new SemaphoreSlim(opt.Threads);
@@ -188,13 +234,29 @@ namespace Vihor.Scanning
                     if (state == "open") { host.Services |= Service.Custom; host.CustomOpen.Add(port); }
                     if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
                 }
+
+                // Port ranges: many ports, so checked in parallel (limited for the whole scan)
+                if (opt.RangePorts.Count > 0 && !ct.IsCancellationRequested)
+                {
+                    var open = new System.Collections.Concurrent.ConcurrentBag<int>();
+                    var checks = opt.RangePorts.Select(async port =>
+                    {
+                        if (ct.IsCancellationRequested) return;
+                        await rangeGate.WaitAsync().ConfigureAwait(false);
+                        try { if (await ConnectAsync(addr, port).ConfigureAwait(false)) open.Add(port); }
+                        finally { rangeGate.Release(); }
+                    }).ToList();
+                    await Task.WhenAll(checks).ConfigureAwait(false);
+                    foreach (var port in open.OrderBy(x => x)) { host.Services |= Service.Custom; host.CustomOpen.Add(port); }
+                    Diag.Host(ip, $"range  {opt.RangePorts.Count} ports checked, open: {(open.IsEmpty ? "-" : string.Join(",", open.OrderBy(x => x)))}");
+                }
             }
 
             // 3) Describe open services (page title, server, banner) — also through the TCP gate
             if (host.Services != Service.None && !ct.IsCancellationRequested)
             {
                 var details = new List<ServiceDetail>();
-                foreach (var p in HostInfo.Ports.Where(p => host.Has(p.Svc)))
+                foreach (var p in HostInfo.Ports.Where(p => host.Has(p.Svc)).OrderBy(p => p.Svc == Service.Printer ? 0 : 1))
                 {
                     await tcpGate.WaitAsync().ConfigureAwait(false);
                     try { details.Add(await ServiceProbe.DescribeAsync(addr, p, opt.ProbeTimeoutMs).ConfigureAwait(false)); }
@@ -257,6 +319,22 @@ namespace Vihor.Scanning
             r = await Task.Run(() => NetBiosApi.Query(addr)).ConfigureAwait(false);
             if (r != null) r.Source = "api";
             return r;
+        }
+
+        /// <summary>Quick TCP connect for port ranges (no global TCP gate, no logging per port).</summary>
+        private async Task<bool> ConnectAsync(IPAddress addr, int port)
+        {
+            var c = new TcpClient(AddressFamily.InterNetwork);
+            try
+            {
+                var t = c.ConnectAsync(addr, port);
+                var done = await Task.WhenAny(t, Task.Delay(opt.PortTimeoutMs)).ConfigureAwait(false);
+                if (done != t) { _ = t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted); return false; }
+                await t.ConfigureAwait(false);
+                return c.Connected;
+            }
+            catch { return false; }
+            finally { c.Close(); }
         }
 
         /// <summary>TCP connect check. Returns "open", "closed" (RST), "timeout" or "error: …".</summary>

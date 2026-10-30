@@ -112,8 +112,10 @@ namespace Vihor.Scanning
             get
             {
                 var list = new List<string>();
+                // A printer is listed first, so printers stand out in the Services column
+                if (Has(Service.Printer)) list.Add("Printer");
                 foreach (var p in Ports)
-                    if ((Services & p.Svc) != 0)
+                    if ((Services & p.Svc) != 0 && p.Svc != Service.Printer)
                         list.Add(p.IsWeb && p.Port != 80 && p.Port != 443 ? $"{p.Label}:{p.Port}" : p.Label);
                 foreach (var port in CustomOpen)
                 {

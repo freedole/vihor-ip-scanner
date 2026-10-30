@@ -126,3 +126,19 @@ filter.missing=missing
 tip.new=New: not found in the previous scan of this range.
 tip.missing=Not found in this scan (seen in the previous scan, {0}).
 tip.missing_short=not found
+
+# 0.4.1
+ctx.advanced_rescan=Advanced rescan…
+tip.clear_filter=Clear filter (Esc)
+adv.title=Advanced rescan - {0}
+adv.info=These settings apply only to this rescan of the selected device and are not saved.
+opt.port_ranges=Port ranges
+opt.port_ranges_hint=For a deeper check of a device, e.g. 3000-3500, 4000-5000, 8000-9000.
+opt.port_ranges_count=Ports in ranges: {0}
+opt.ranges_only_rescan=Use port ranges only for Rescan (recommended)
+opt.invalid_ports=Invalid port or range: "{0}". Use e.g. 8000-9000 or 8123.
+opt.ranges_too_many=At most {0} ports can be scanned from ranges.
+warn.title=Many ports
+warn.ranges=The port ranges contain {0} ports.\n\nScanning will take longer, and on company networks a security system (antivirus, IDS) may report it as a port scan.
+warn.dont_show=Don't show this again
+btn.continue=Continue

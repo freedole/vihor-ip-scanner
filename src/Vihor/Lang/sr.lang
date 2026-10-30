@@ -125,3 +125,19 @@ filter.missing=nestali
 tip.new=Novi: nije pronađen u prethodnom skeniranju ovog opsega.
 tip.missing=Nije pronađen u ovom skeniranju (bio je u prethodnom, {0}).
 tip.missing_short=nije pronađen
+
+# 0.4.1
+ctx.advanced_rescan=Napredno ponovno skeniranje…
+tip.clear_filter=Obriši filter (Esc)
+adv.title=Napredno ponovno skeniranje - {0}
+adv.info=Ova podešavanja važe samo za ovo skeniranje izabranog uređaja i ne pamte se.
+opt.port_ranges=Opsezi portova
+opt.port_ranges_hint=Za detaljniju proveru uređaja, npr. 3000-3500, 4000-5000, 8000-9000.
+opt.port_ranges_count=Portova u opsezima: {0}
+opt.ranges_only_rescan=Opsege koristi samo za ponovno skeniranje (preporučeno)
+opt.invalid_ports=Neispravan port ili opseg: "{0}". Upiši npr. 8000-9000 ili 8123.
+opt.ranges_too_many=Iz opsega se može skenirati najviše {0} portova.
+warn.title=Mnogo portova
+warn.ranges=Opsezi sadrže {0} portova.\n\nSkeniranje će trajati duže, a na poslovnim mrežama sigurnosni sistem (antivirus, IDS) ga može prijaviti kao skeniranje portova.
+warn.dont_show=Ne prikazuj više
+btn.continue=Nastavi

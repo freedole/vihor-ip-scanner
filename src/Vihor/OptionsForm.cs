@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -5,17 +6,32 @@ using Vihor.Scanning;
 
 namespace Vihor
 {
-    /// <summary>Options: scan speed / thoroughness, which services to detect, user-defined ports.</summary>
+    /// <summary>
+    /// Options: scan speed / thoroughness, services to detect, own ports and port ranges.
+    /// The same window is used for "Advanced rescan" of one device: then nothing is saved and
+    /// the chosen settings are returned in <see cref="Profile"/>.
+    /// </summary>
     internal sealed class OptionsForm : Form
     {
         private readonly TrackBar speed = new TrackBar();
         private readonly Label speedInfo = new Label();
         private readonly CheckedListBox services = new CheckedListBox();
         private readonly TextBox customPorts = new TextBox();
+        private readonly TextBox portRanges = new TextBox();
+        private readonly Label rangeInfo = new Label();
+        private readonly CheckBox rangesOnlyRescan = new CheckBox();
+        private readonly bool deviceMode;
 
-        public OptionsForm()
+        /// <summary>The settings chosen in this window (valid after OK / Scan).</summary>
+        public ScanProfile Profile { get; private set; }
+
+        /// <param name="device">null = global Options (saved); otherwise Advanced rescan of this device (not saved).</param>
+        public OptionsForm(string device = null)
         {
-            Text = Lang.T("opt.title");
+            deviceMode = device != null;
+            var start = ScanProfile.FromSettings();
+
+            Text = deviceMode ? Lang.T("adv.title", device) : Lang.T("opt.title");
             Icon = MainForm.LoadIcon();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
@@ -27,8 +43,11 @@ namespace Vihor
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
             Padding = new Padding(LogicalToDeviceUnits(16));
 
-            int w = LogicalToDeviceUnits(420);
+            int w = LogicalToDeviceUnits(440);
             var root = new TableLayoutPanel { ColumnCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
+
+            if (deviceMode)
+                root.Controls.Add(Hint(Lang.T("adv.info"), w, 12));
 
             // --- speed
             root.Controls.Add(Header(Lang.T("opt.speed")));
@@ -37,7 +56,7 @@ namespace Vihor
             speed.TickFrequency = 1;
             speed.LargeChange = 1;
             speed.Width = w;
-            speed.Value = System.Math.Max(1, System.Math.Min(5, Settings.Speed));
+            speed.Value = System.Math.Max(1, System.Math.Min(5, start.Speed));
             speed.ValueChanged += (s, e) => UpdateSpeedInfo();
             root.Controls.Add(speed);
 
@@ -60,9 +79,9 @@ namespace Vihor
             services.IntegralHeight = false;
             services.BorderStyle = BorderStyle.FixedSingle;
             services.Width = w;
-            services.Height = LogicalToDeviceUnits(200);
+            services.Height = LogicalToDeviceUnits(190);
             foreach (var p in HostInfo.Ports)
-                services.Items.Add(new ServiceItem(p), Settings.ServicePorts.Contains(p.Port));
+                services.Items.Add(new ServiceItem(p), start.ServicePorts.Contains(p.Port));
             root.Controls.Add(services);
 
             var defaults = new LinkLabel { Text = Lang.T("opt.defaults"), AutoSize = true, Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(12)) };
@@ -74,19 +93,41 @@ namespace Vihor
             };
             root.Controls.Add(defaults);
 
-            // --- custom ports
+            // --- own ports
             root.Controls.Add(Header(Lang.T("opt.custom_ports")));
             customPorts.Width = w;
-            customPorts.Text = string.Join(", ", Settings.CustomPorts);
+            customPorts.Text = string.Join(", ", start.CustomPorts);
             root.Controls.Add(customPorts);
-            root.Controls.Add(new Label { Text = Lang.T("opt.custom_ports_hint"), AutoSize = true, ForeColor = Theme.Muted, Tag = "muted", MaximumSize = new Size(w, 0),
-                                          Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(14)) });
+            root.Controls.Add(Hint(Lang.T("opt.custom_ports_hint"), w, 12));
+
+            // --- port ranges
+            root.Controls.Add(Header(Lang.T("opt.port_ranges")));
+            portRanges.Width = w;
+            portRanges.Text = start.PortRanges;
+            portRanges.TextChanged += (s, e) => UpdateRangeInfo();
+            root.Controls.Add(portRanges);
+            rangeInfo.AutoSize = true;
+            rangeInfo.MaximumSize = new Size(w, 0);
+            rangeInfo.Tag = "muted";
+            rangeInfo.ForeColor = Theme.Muted;
+            rangeInfo.Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(4));
+            root.Controls.Add(rangeInfo);
+            if (!deviceMode)
+            {
+                rangesOnlyRescan.Text = Lang.T("opt.ranges_only_rescan");
+                rangesOnlyRescan.AutoSize = true;
+                rangesOnlyRescan.Checked = start.RangesOnlyRescan;
+                rangesOnlyRescan.Margin = new Padding(0, LogicalToDeviceUnits(2), 0, LogicalToDeviceUnits(14));
+                root.Controls.Add(rangesOnlyRescan);
+            }
+            else rangeInfo.Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(14));
+            UpdateRangeInfo();
 
             // --- buttons
             var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Width = w, AutoSize = true, Margin = Padding.Empty };
             var cancel = new Button { Text = Lang.T("btn.cancel"), DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(LogicalToDeviceUnits(88), 0) };
-            var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(LogicalToDeviceUnits(88), 0) };
-            ok.Click += (s, e) => Save();
+            var ok = new Button { Text = deviceMode ? Lang.T("btn.scan") : "OK", AutoSize = true, MinimumSize = new Size(LogicalToDeviceUnits(88), 0) };
+            ok.Click += (s, e) => Accept();
             buttons.Controls.Add(cancel);
             buttons.Controls.Add(ok);
             root.Controls.Add(buttons);
@@ -105,14 +146,67 @@ namespace Vihor
             Margin = new Padding(0, 0, 0, LogicalToDeviceUnits(4)),
         };
 
+        private Label Hint(string text, int width, int bottom) => new Label
+        {
+            Text = text,
+            AutoSize = true,
+            ForeColor = Theme.Muted,
+            Tag = "muted",
+            MaximumSize = new Size(width, 0),
+            Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(bottom)),
+        };
+
         private void UpdateSpeedInfo() => speedInfo.Text = Lang.T("opt.speed_" + speed.Value);
 
-        private void Save()
+        private void UpdateRangeInfo()
         {
-            Settings.Speed = speed.Value;
-            Settings.ServicePorts = services.CheckedItems.Cast<ServiceItem>().Select(i => i.Def.Port).ToList();
-            Settings.CustomPorts = Settings.ParsePorts(customPorts.Text);
-            Settings.Save();
+            var ports = Settings.ParseRanges(portRanges.Text, out var err);
+            if (err != null) { rangeInfo.Text = Lang.T("opt.invalid_ports", err); return; }
+            if (ports.Count == 0) { rangeInfo.Text = Lang.T("opt.port_ranges_hint"); return; }
+            rangeInfo.Text = Lang.T("opt.port_ranges_count", ports.Count) +
+                             (ports.Count > Settings.MaxRangePorts ? "  " + Lang.T("opt.ranges_too_many", Settings.MaxRangePorts) : "");
+        }
+
+        private void Accept()
+        {
+            var ranges = Settings.ParseRanges(portRanges.Text, out var err);
+            if (err != null)
+            {
+                MessageBox.Show(this, Lang.T("opt.invalid_ports", err), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                portRanges.Focus();
+                return;
+            }
+            if (ranges.Count > Settings.MaxRangePorts)
+            {
+                MessageBox.Show(this, Lang.T("opt.ranges_too_many", Settings.MaxRangePorts), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                portRanges.Focus();
+                return;
+            }
+            if (ranges.Count > Settings.WarnRangePorts && !Settings.HideRangeWarning && !RangeWarning.Confirm(this, ranges.Count))
+                return;
+
+            Profile = new ScanProfile
+            {
+                Speed = speed.Value,
+                ServicePorts = services.CheckedItems.Cast<ServiceItem>().Select(i => i.Def.Port).ToList(),
+                CustomPorts = Settings.ParsePorts(customPorts.Text),
+                PortRanges = NormalizeRanges(portRanges.Text),
+                RangesOnlyRescan = deviceMode || rangesOnlyRescan.Checked,
+            };
+            if (!deviceMode) Profile.SaveToSettings();
+            DialogResult = DialogResult.OK;
+        }
+
+        /// <summary>"3000 -3500,4000-5000" -> "3000-3500, 4000-5000".</summary>
+        private static string NormalizeRanges(string text)
+        {
+            var parts = new List<string>();
+            foreach (var raw in (text ?? "").Split(new[] { ',', ';' }, System.StringSplitOptions.RemoveEmptyEntries))
+            {
+                var p = string.Join("-", raw.Split(new[] { '-', '–' }, System.StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()));
+                if (p.Length > 0) parts.Add(p);
+            }
+            return string.Join(", ", parts);
         }
 
         private sealed class ServiceItem
@@ -127,6 +221,52 @@ namespace Vihor
                 if (name == key) name = Def.Label;
                 return $"{name}  (TCP {Def.Port})";
             }
+        }
+    }
+
+    /// <summary>Warning before scanning many ports from ranges, with "Don't show again".</summary>
+    internal sealed class RangeWarning : Form
+    {
+        private RangeWarning(int count)
+        {
+            Text = Lang.T("warn.title");
+            Icon = MainForm.LoadIcon();
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = MinimizeBox = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterParent;
+            AutoScaleMode = AutoScaleMode.Dpi;
+            Font = SystemFonts.MessageBoxFont;
+            AutoSize = true;
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            Padding = new Padding(LogicalToDeviceUnits(16));
+
+            int w = LogicalToDeviceUnits(400);
+            var root = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
+            var icon = new PictureBox { Image = SystemIcons.Warning.ToBitmap(), SizeMode = PictureBoxSizeMode.AutoSize, Margin = new Padding(0, 0, LogicalToDeviceUnits(12), 0) };
+            var text = new Label { Text = Lang.T("warn.ranges", count), AutoSize = true, MaximumSize = new Size(w, 0) };
+            var dontShow = new CheckBox { Text = Lang.T("warn.dont_show"), AutoSize = true, Margin = new Padding(0, LogicalToDeviceUnits(14), 0, LogicalToDeviceUnits(10)) };
+            var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = Padding.Empty };
+            var cancel = new Button { Text = Lang.T("btn.cancel"), DialogResult = DialogResult.Cancel, AutoSize = true, MinimumSize = new Size(LogicalToDeviceUnits(88), 0) };
+            var ok = new Button { Text = Lang.T("btn.continue"), DialogResult = DialogResult.OK, AutoSize = true, MinimumSize = new Size(LogicalToDeviceUnits(88), 0) };
+            ok.Click += (s, e) => { if (dontShow.Checked) { Settings.HideRangeWarning = true; Settings.Save(); } };
+            buttons.Controls.Add(cancel);
+            buttons.Controls.Add(ok);
+
+            root.Controls.Add(icon, 0, 0);
+            root.Controls.Add(text, 1, 0);
+            root.Controls.Add(dontShow, 1, 1);
+            root.Controls.Add(buttons, 1, 2);
+            Controls.Add(root);
+            AcceptButton = ok;
+            CancelButton = cancel;
+            Theme.Apply(this);
+        }
+
+        public static bool Confirm(IWin32Window owner, int count)
+        {
+            using var f = new RangeWarning(count);
+            return f.ShowDialog(owner) == DialogResult.OK;
         }
     }
 }

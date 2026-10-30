@@ -23,6 +23,7 @@ namespace Vihor
         private readonly ToolStripButton btnExpand = new ToolStripButton();
         private readonly ToolStripButton btnCollapse = new ToolStripButton();
         private readonly ToolStripButton btnRescan = new ToolStripButton();
+        private readonly ToolStripButton btnClearFilter = new ToolStripButton();
         private readonly ToolStripTextBox txtFilter = new ToolStripTextBox();
         private readonly ToolStripLabel lblFilter = new ToolStripLabel();
         private readonly HostListView list = new HostListView();
@@ -44,7 +45,7 @@ namespace Vihor
         private ToolStripMenuItem cCopy, cCopyIp, cCopyName, cCopyMac, cCopyVendor, cCopyRow;
         private ToolStripMenuItem cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore;
         private ToolStripMenuItem cTools, cPing, cTracert, cWol, cRescan, cShutdown, cRestart, cAbort;
-        private ToolStripMenuItem cOpenService, cExpandAll, cCollapseAll;
+        private ToolStripMenuItem cOpenService, cExpandAll, cCollapseAll, cAdvancedRescan;
         private ToolStripSeparator cOpenServiceSep;
         private readonly HashSet<uint> expanded = new HashSet<uint>();
         private bool chevronClicked;
@@ -269,13 +270,20 @@ namespace Vihor
 
             txtFilter.AutoSize = false;
             txtFilter.Width = LogicalToDeviceUnits(180);
-            txtFilter.TextChanged += (s, e) => RebuildList();
+            txtFilter.TextChanged += (s, e) => { btnClearFilter.Visible = txtFilter.Text.Length > 0; RebuildList(); };
+            txtFilter.KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape && txtFilter.Text.Length > 0) { txtFilter.Clear(); e.Handled = e.SuppressKeyPress = true; } };
+
+            btnClearFilter.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            btnClearFilter.Text = "✕";
+            btnClearFilter.Visible = false;
+            btnClearFilter.Margin = new Padding(LogicalToDeviceUnits(2), 0, 0, 0);
+            btnClearFilter.Click += (s, e) => { txtFilter.Clear(); txtFilter.Focus(); };
 
             tools.Items.AddRange(new ToolStripItem[]
             {
                 lblRange, cmbRange, btnScan, btnLocal, new ToolStripSeparator(), btnExport,
                 new ToolStripSeparator(), btnExpand, btnCollapse, btnRescan,
-                new ToolStripSeparator(), lblFilter, txtFilter
+                new ToolStripSeparator(), lblFilter, txtFilter, btnClearFilter
             });
         }
 
@@ -409,6 +417,7 @@ namespace Vihor
             cTools = new ToolStripMenuItem("", null, cPing, cTracert, cWol, new ToolStripSeparator(), cShutdown, cRestart, cAbort);
 
             cRescan = new ToolStripMenuItem("", null, async (s, e) => await RescanSelected());
+            cAdvancedRescan = new ToolStripMenuItem("", null, async (s, e) => await AdvancedRescan());
             cOpenService = new ToolStripMenuItem("", null, (s, e) =>
             {
                 if (list.FocusedItem?.Tag is ServiceRow sr) HostActions.OpenService(sr.Host, sr.Detail);
@@ -420,7 +429,7 @@ namespace Vihor
             ctx.Items.AddRange(new ToolStripItem[]
             {
                 cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore, new ToolStripSeparator(),
-                cCopy, cTools, new ToolStripSeparator(), cRescan, cExpandAll, cCollapseAll
+                cCopy, cTools, new ToolStripSeparator(), cRescan, cAdvancedRescan, cExpandAll, cCollapseAll
             });
             ctx.Items.Insert(0, cOpenServiceSep);
             ctx.Items.Insert(0, cOpenService);
@@ -444,7 +453,8 @@ namespace Vihor
                 cHttpAlt.Visible = h.Has(Service.HttpAlt);
                 cFtp.Visible = h.Has(Service.Ftp);
                 cWol.Enabled = sel.Any(x => x.Mac != null);
-                cRescan.Enabled = !scanning;
+                cRescan.Enabled = !scanning && !rescanning;
+                cAdvancedRescan.Enabled = !scanning && !rescanning && sel.Count == 1;
                 bool single = sel.Count == 1;
                 foreach (var i in new[] { cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore, cPing, cTracert, cShutdown, cRestart, cAbort })
                     i.Enabled = single;
@@ -538,6 +548,8 @@ namespace Vihor
             cRestart.Text = Lang.T("ctx.restart");
             cAbort.Text = Lang.T("ctx.abort_shutdown");
             cRescan.Text = Lang.T("ctx.rescan");
+            cAdvancedRescan.Text = Lang.T("ctx.advanced_rescan");
+            btnClearFilter.ToolTipText = Lang.T("tip.clear_filter");
             cExpandAll.Text = Lang.T("ctx.expand_all");
             cCollapseAll.Text = Lang.T("ctx.collapse_all");
 
@@ -676,21 +688,55 @@ namespace Vihor
             }
         }
 
-        private async System.Threading.Tasks.Task RescanSelected()
+        private bool rescanning;
+
+        /// <summary>Rescans the selected devices with the Options settings (incl. port ranges), or with <paramref name="options"/>.</summary>
+        private async System.Threading.Tasks.Task RescanSelected(ScanOptions options = null, List<HostInfo> targets = null)
         {
-            var sel = Selected().ToList();
-            if (sel.Count == 0 || scanning) return;
-            var scanner = new Scanner(ScanOptions.FromSettings());
-            lblStatus.Text = Lang.T("status.rescanning");
-            foreach (var old in sel)
+            var sel = targets ?? Selected().ToList();
+            if (sel.Count == 0 || scanning || rescanning) return;
+            rescanning = true;
+            btnRescan.Enabled = mRescan.Enabled = false;
+            var scanner = new Scanner(options ?? ScanOptions.FromSettings(rescan: true));
+            try
             {
-                var fresh = await System.Threading.Tasks.Task.Run(() => scanner.ScanHostAsync(old.Ip, CancellationToken.None));
-                int idx = hosts.FindIndex(h => h.Ip == old.Ip);
-                if (idx < 0) continue;
-                if (fresh != null) { fresh.IsNew = old.IsNew; hosts[idx] = fresh; } else hosts.RemoveAt(idx);
+                foreach (var old in sel)
+                {
+                    lblStatus.Text = Lang.T("status.rescanning") + " " + old.IpText;
+                    var fresh = await System.Threading.Tasks.Task.Run(() => scanner.ScanHostAsync(old.Ip, CancellationToken.None));
+                    int idx = hosts.FindIndex(h => h.Ip == old.Ip);
+                    if (idx < 0) continue;
+                    if (fresh != null)
+                    {
+                        fresh.IsNew = old.IsNew;
+                        hosts[idx] = fresh;
+                        if (fresh.Details.Count > 0) expanded.Add(fresh.Ip); // show what was found
+                    }
+                    else hosts.RemoveAt(idx);
+                    RebuildList();
+                }
             }
-            RebuildList();
-            UpdateStatus();
+            finally
+            {
+                rescanning = false;
+                btnRescan.Enabled = mRescan.Enabled = true;
+                RebuildList();
+                UpdateStatus();
+            }
+        }
+
+        /// <summary>Opens the Options window for one device, then rescans it with those settings (not saved).</summary>
+        private async System.Threading.Tasks.Task AdvancedRescan()
+        {
+            var h = Selected().FirstOrDefault();
+            if (h == null || scanning || rescanning) return;
+            ScanProfile profile;
+            using (var f = new OptionsForm(string.IsNullOrEmpty(h.Name) ? h.IpText : $"{h.Name} ({h.IpText})"))
+            {
+                if (f.ShowDialog(this) != DialogResult.OK) return;
+                profile = f.Profile;
+            }
+            await RescanSelected(ScanOptions.From(profile, rescan: true), new List<HostInfo> { h });
         }
 
         private void FlushIncoming()
