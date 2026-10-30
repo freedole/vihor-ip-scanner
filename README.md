@@ -63,13 +63,25 @@ scoop install vihor
 
 ## Command line
 
-For scheduled inventories (Task Scheduler), Vihor can scan without a window:
+For scheduled inventories (Task Scheduler), Vihor can scan without a window. Use the full path of the program:
 
 ```
-VihorIPScanner.exe /scan 192.168.1.1-254 /export C:\Reports\lan.csv [/speed 1-5] [/ranges]
+"C:\Program Files\Vihor IP Scanner\VihorIPScanner.exe" /scan 192.168.1.1-254 /export C:\Reports\lan.csv
 ```
 
-The export (CSV or HTML, by file extension) includes notes and a Status column with devices that are new or missing since the previous scan of the same range.
+| Option | Meaning |
+|---|---|
+| `/scan <range>` | IP range, e.g. `192.168.1.1-254` or `10.0.0.0/24` |
+| `/export <file>` | save the result as CSV or HTML (by file extension) |
+| `/speed 1-5` | 1 = fastest … 5 = most thorough (default: as in Options) |
+| `/ranges` | also check the port ranges from Options |
+| `/?` | help |
+
+Notes:
+
+- The folder for the export must exist (e.g. `mkdir C:\Reports`).
+- Installed with Scoop: run `scoop update vihor`, then use `vihoripscanner /scan …`.
+- The export includes notes and a Status column with devices that are new or missing since the previous scan of the same range.
 
 ## Keyboard shortcuts
 
