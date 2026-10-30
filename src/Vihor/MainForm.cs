@@ -698,11 +698,30 @@ namespace Vihor
             rescanning = true;
             btnRescan.Enabled = mRescan.Enabled = false;
             var scanner = new Scanner(options ?? ScanOptions.FromSettings(rescan: true));
+
+            // Progress: counted per TCP port check (port ranges can be thousands of ports)
+            int portsDone = 0, portsTotal = Math.Max(1, scanner.PortChecksPerHost * sel.Count);
+            string current = "";
+            var clock = Stopwatch.StartNew();
+            scanner.PortChecked += () => Interlocked.Increment(ref portsDone);
+            progress.Maximum = portsTotal;
+            progress.Value = 0;
+            progress.Visible = true;
+            void Show()
+            {
+                int d = Math.Min(Volatile.Read(ref portsDone), portsTotal);
+                progress.Value = d;
+                lblStatus.Text = Lang.T("status.rescan_progress", current, d, portsTotal, clock.Elapsed.TotalSeconds.ToString("0"));
+            }
+            using var timer = new System.Windows.Forms.Timer { Interval = 250 };
+            timer.Tick += (s, e) => Show();
+            timer.Start();
             try
             {
                 foreach (var old in sel)
                 {
-                    lblStatus.Text = Lang.T("status.rescanning") + " " + old.IpText;
+                    current = old.IpText;
+                    Show();
                     var fresh = await System.Threading.Tasks.Task.Run(() => scanner.ScanHostAsync(old.Ip, CancellationToken.None));
                     int idx = hosts.FindIndex(h => h.Ip == old.Ip);
                     if (idx < 0) continue;
@@ -718,6 +737,8 @@ namespace Vihor
             }
             finally
             {
+                timer.Stop();
+                progress.Visible = false;
                 rescanning = false;
                 btnRescan.Enabled = mRescan.Enabled = true;
                 RebuildList();

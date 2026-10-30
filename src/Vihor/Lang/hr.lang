@@ -141,3 +141,4 @@ warn.title=Mnogo portova
 warn.ranges=Rasponi sadrže {0} portova.\n\nSkeniranje će trajati dulje, a na poslovnim mrežama sigurnosni sustav (antivirus, IDS) može ga prijaviti kao skeniranje portova.
 warn.dont_show=Ne prikazuj više
 btn.continue=Nastavi
+status.rescan_progress=Ponovno skeniranje {0} · provjereno portova: {1} / {2} · {3} s

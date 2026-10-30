@@ -35,7 +35,7 @@ namespace Vihor
         public static bool HideRangeWarning = false;
 
         /// <summary>Hard limit for the number of ports from ranges.</summary>
-        public const int MaxRangePorts = 5000;
+        public const int MaxRangePorts = 10001; // allows round ranges like 3000-13000
         /// <summary>Above this many range ports the user is warned.</summary>
         public const int WarnRangePorts = 1000;
 

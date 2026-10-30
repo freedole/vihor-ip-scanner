@@ -107,6 +107,11 @@ namespace Vihor.Scanning
     {
         public event Action<HostInfo> HostFound;
         public event Action<int, int> Progress;
+        /// <summary>Raised after every TCP port check (used for the rescan progress bar).</summary>
+        public event Action PortChecked;
+
+        /// <summary>Number of TCP port checks one host needs with these options.</summary>
+        public int PortChecksPerHost => opt.ScanPorts ? HostInfo.Ports.Count(p => opt.ServicePorts.Contains(p.Port)) + opt.CustomPorts.Count + opt.RangePorts.Count : 0;
 
         private readonly ScanOptions opt;
         private readonly List<LocalSubnet> subnets;
@@ -222,6 +227,7 @@ namespace Vihor.Scanning
                     if (ct.IsCancellationRequested) break;
                     if (!opt.ServicePorts.Contains(p.Port)) continue;
                     var state = await CheckPortAsync(addr, p.Port).ConfigureAwait(false);
+                    PortChecked?.Invoke();
                     Diag.Host(ip, $"tcp/{p.Port,-5} {state}");
                     if (state == "open") host.Services |= p.Svc;
                     if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
@@ -230,6 +236,7 @@ namespace Vihor.Scanning
                 {
                     if (ct.IsCancellationRequested) break;
                     var state = await CheckPortAsync(addr, port).ConfigureAwait(false);
+                    PortChecked?.Invoke();
                     Diag.Host(ip, $"tcp/{port,-5} {state} (custom)");
                     if (state == "open") { host.Services |= Service.Custom; host.CustomOpen.Add(port); }
                     if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
@@ -244,7 +251,7 @@ namespace Vihor.Scanning
                         if (ct.IsCancellationRequested) return;
                         await rangeGate.WaitAsync().ConfigureAwait(false);
                         try { if (await ConnectAsync(addr, port).ConfigureAwait(false)) open.Add(port); }
-                        finally { rangeGate.Release(); }
+                        finally { rangeGate.Release(); PortChecked?.Invoke(); }
                     }).ToList();
                     await Task.WhenAll(checks).ConfigureAwait(false);
                     foreach (var port in open.OrderBy(x => x)) { host.Services |= Service.Custom; host.CustomOpen.Add(port); }

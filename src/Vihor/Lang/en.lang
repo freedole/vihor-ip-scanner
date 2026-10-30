@@ -142,3 +142,4 @@ warn.title=Many ports
 warn.ranges=The port ranges contain {0} ports.\n\nScanning will take longer, and on company networks a security system (antivirus, IDS) may report it as a port scan.
 warn.dont_show=Don't show this again
 btn.continue=Continue
+status.rescan_progress=Rescanning {0} · {1} / {2} ports checked · {3} s

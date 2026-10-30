@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 - 2026-10-30
+
+- Port ranges: limit raised to 10001 ports, so round ranges like 3000-13000 fit.
+- Rescan and Advanced rescan show a progress bar and "ports checked X / Y · seconds" in the status bar.
+
 ## 0.4.1 - 2026-10-30
 
 - Port ranges in Options (e.g. 3000-3500, 4000-5000, 8000-9000), checked in parallel, up to 5000 ports. By default they are used only for Rescan, so a normal network scan stays fast.
