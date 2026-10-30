@@ -120,7 +120,7 @@ namespace Vihor.Scanning
                 foreach (var port in CustomOpen)
                 {
                     var d = Details.Find(x => x.Def.Svc == Service.Custom && x.Def.Port == port);
-                    list.Add((d != null && d.Def.IsWeb ? d.Def.Label : "TCP") + ":" + port);
+                    list.Add((d != null && d.Def.IsWeb ? d.Def.Label : WellKnownPorts.Name(port) ?? "TCP") + ":" + port);
                 }
                 return string.Join(", ", list);
             }

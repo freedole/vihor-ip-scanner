@@ -12,13 +12,14 @@ namespace Vihor
         private static string[] Header => new[]
         {
             Lang.T("col.ip"), Lang.T("col.name"), Lang.T("col.vendor"), Lang.T("col.mac"),
-            Lang.T("col.services"), Lang.T("col.ping"), Lang.T("col.workgroup")
+            Lang.T("col.services"), Lang.T("col.ping"), Lang.T("col.workgroup"), Lang.T("col.note"), Lang.T("col.status")
         };
 
         private static string[] Row(HostInfo h) => new[]
         {
             h.IpText, h.Name, h.Vendor, h.MacText, h.ServicesText,
-            h.PingMs < 0 ? "" : h.PingMs.ToString(CultureInfo.InvariantCulture), h.Workgroup
+            h.IsMissing || h.PingMs < 0 ? "" : h.PingMs.ToString(CultureInfo.InvariantCulture), h.Workgroup,
+            Notes.Get(h), h.IsMissing ? Lang.T("status.missing") : h.IsNew ? Lang.T("status.new") : ""
         };
 
         /// <summary>CSV with the system list separator (";" on most European locales) so Excel opens it directly.</summary>

@@ -83,6 +83,7 @@ namespace Vihor
                     case TextBox _:
                     case ComboBox _:
                     case ListBox _:
+                    case NumericUpDown _:
                         c.BackColor = Input; c.ForeColor = Fore;
                         break;
                     case Button b:

@@ -12,7 +12,42 @@ namespace Vihor
     {
         public static void Rdp(HostInfo h) => Start("mstsc.exe", "/v:" + h.IpText);
 
-        public static void Ssh(HostInfo h) => Start("cmd.exe", "/k ssh " + h.IpText);
+        public static void Ssh(HostInfo h)
+        {
+            var client = Settings.SshClient;
+            string wt = WindowsTerminal(), putty = Putty();
+            if ((client == "auto" || client == "wt") && wt != null) { Start(wt, "ssh " + h.IpText); return; }
+            if ((client == "auto" || client == "putty") && putty != null) { Start(putty, "-ssh " + h.IpText); return; }
+            Start("cmd.exe", "/k ssh " + h.IpText);
+        }
+
+        /// <summary>Path of wt.exe (Windows Terminal) or null.</summary>
+        public static string WindowsTerminal()
+        {
+            var p = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\wt.exe");
+            return System.IO.File.Exists(p) ? p : null;
+        }
+
+        /// <summary>Path of putty.exe (installed or on PATH) or null.</summary>
+        public static string Putty()
+        {
+            foreach (var dir in new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) })
+            {
+                if (string.IsNullOrEmpty(dir)) continue;
+                var p = System.IO.Path.Combine(dir, "PuTTY", "putty.exe");
+                if (System.IO.File.Exists(p)) return p;
+            }
+            foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(';'))
+            {
+                try
+                {
+                    var p = System.IO.Path.Combine(dir.Trim(), "putty.exe");
+                    if (dir.Trim().Length > 0 && System.IO.File.Exists(p)) return p;
+                }
+                catch { }
+            }
+            return null;
+        }
 
         public static void Http(HostInfo h, int port = 80) =>
             Start(port == 80 ? "http://" + h.IpText + "/" : $"http://{h.IpText}:{port}/", null);

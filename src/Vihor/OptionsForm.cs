@@ -20,6 +20,7 @@ namespace Vihor
         private readonly TextBox portRanges = new TextBox();
         private readonly Label rangeInfo = new Label();
         private readonly CheckBox rangesOnlyRescan = new CheckBox();
+        private readonly ComboBox sshClient = new ComboBox();
         private readonly bool deviceMode;
 
         /// <summary>The settings chosen in this window (valid after OK / Scan).</summary>
@@ -79,7 +80,7 @@ namespace Vihor
             services.IntegralHeight = false;
             services.BorderStyle = BorderStyle.FixedSingle;
             services.Width = w;
-            services.Height = LogicalToDeviceUnits(190);
+            services.Height = LogicalToDeviceUnits(150);
             foreach (var p in HostInfo.Ports)
                 services.Items.Add(new ServiceItem(p), start.ServicePorts.Contains(p.Port));
             root.Controls.Add(services);
@@ -122,6 +123,24 @@ namespace Vihor
             }
             else rangeInfo.Margin = new Padding(0, LogicalToDeviceUnits(4), 0, LogicalToDeviceUnits(14));
             UpdateRangeInfo();
+
+            if (!deviceMode)
+            {
+                // --- SSH client
+                root.Controls.Add(Header(Lang.T("opt.ssh_client")));
+                sshClient.DropDownStyle = ComboBoxStyle.DropDownList;
+                sshClient.Width = LogicalToDeviceUnits(260);
+                sshClient.Items.AddRange(new object[]
+                {
+                    new Choice("auto", Lang.T("opt.ssh_auto")),
+                    new Choice("wt", "Windows Terminal" + (HostActions.WindowsTerminal() == null ? "  (" + Lang.T("opt.not_installed") + ")" : "")),
+                    new Choice("putty", "PuTTY" + (HostActions.Putty() == null ? "  (" + Lang.T("opt.not_installed") + ")" : "")),
+                    new Choice("cmd", Lang.T("opt.ssh_cmd")),
+                });
+                sshClient.SelectedItem = sshClient.Items.Cast<Choice>().FirstOrDefault(c => c.Value == Settings.SshClient) ?? sshClient.Items[0];
+                sshClient.Margin = new Padding(0, 0, 0, LogicalToDeviceUnits(14));
+                root.Controls.Add(sshClient);
+            }
 
             // --- buttons
             var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Width = w, AutoSize = true, Margin = Padding.Empty };
@@ -193,7 +212,11 @@ namespace Vihor
                 PortRanges = NormalizeRanges(portRanges.Text),
                 RangesOnlyRescan = deviceMode || rangesOnlyRescan.Checked,
             };
-            if (!deviceMode) Profile.SaveToSettings();
+            if (!deviceMode)
+            {
+                Settings.SshClient = (sshClient.SelectedItem as Choice)?.Value ?? "auto";
+                Profile.SaveToSettings();
+            }
             DialogResult = DialogResult.OK;
         }
 
@@ -207,6 +230,13 @@ namespace Vihor
                 if (p.Length > 0) parts.Add(p);
             }
             return string.Join(", ", parts);
+        }
+
+        private sealed class Choice
+        {
+            public readonly string Value, Text;
+            public Choice(string value, string text) { Value = value; Text = text; }
+            public override string ToString() => Text;
         }
 
         private sealed class ServiceItem

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - 2026-10-30
+
+- Names for well-known ports found in "my ports" and port ranges, e.g. "MySQL / MariaDB:3306", "Home Assistant:8123", "MikroTik Winbox:8291".
+- Notes on devices (right-click → Note…), remembered by MAC address and shown in the new Note column in every scan; searchable with the filter.
+- Export (CSV/HTML) now includes the Note and Status (new / missing) columns and the devices missing since the last scan.
+- Command line mode for Task Scheduler: `VihorIPScanner.exe /scan 192.168.1.1-254 /export C:\Reports\lan.csv [/speed 1-5] [/ranges]`.
+- SSH client choice in Options: automatic (Windows Terminal, then PuTTY, then command prompt) or a fixed one.
+
 ## 0.4.2 - 2026-10-30
 
 - Port ranges: limit raised to 10001 ports, so round ranges like 3000-13000 fit.

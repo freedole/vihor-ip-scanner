@@ -45,7 +45,7 @@ namespace Vihor
         private ToolStripMenuItem cCopy, cCopyIp, cCopyName, cCopyMac, cCopyVendor, cCopyRow;
         private ToolStripMenuItem cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore;
         private ToolStripMenuItem cTools, cPing, cTracert, cWol, cRescan, cShutdown, cRestart, cAbort;
-        private ToolStripMenuItem cOpenService, cExpandAll, cCollapseAll, cAdvancedRescan;
+        private ToolStripMenuItem cOpenService, cExpandAll, cCollapseAll, cAdvancedRescan, cNote;
         private ToolStripSeparator cOpenServiceSep;
         private readonly HashSet<uint> expanded = new HashSet<uint>();
         private bool chevronClicked;
@@ -64,7 +64,7 @@ namespace Vihor
         private int sortColumn = 1;
         private bool sortAsc = true;
 
-        private const int ColName = 0, ColIp = 1, ColVendor = 2, ColMac = 3, ColWorkgroup = 4, ColServices = 5, ColPing = 6;
+        private const int ColName = 0, ColIp = 1, ColVendor = 2, ColMac = 3, ColWorkgroup = 4, ColServices = 5, ColNote = 6, ColPing = 7;
         private int workgroupWidth;
 
         public MainForm()
@@ -303,6 +303,7 @@ namespace Vihor
             list.Columns.Add("", LogicalToDeviceUnits(130));
             list.Columns.Add("", workgroupWidth = LogicalToDeviceUnits(110));
             list.Columns.Add("", LogicalToDeviceUnits(150));
+            list.Columns.Add("", LogicalToDeviceUnits(160));
             list.Columns.Add("", LogicalToDeviceUnits(65), HorizontalAlignment.Right);
             list.ColumnClick += (s, e) =>
             {
@@ -407,6 +408,13 @@ namespace Vihor
             cHttpAlt = new ToolStripMenuItem("", null, (s, e) => HostActions.Http(H(), 8080));
             cFtp = new ToolStripMenuItem("", null, (s, e) => HostActions.Ftp(H()));
             cExplore = new ToolStripMenuItem("", null, (s, e) => HostActions.Explore(H()));
+            cNote = new ToolStripMenuItem("", null, (s, e) =>
+            {
+                var h = H();
+                if (h == null) return;
+                var note = Notes.Edit(this, h);
+                if (note != null) { Notes.Set(h, note); RebuildList(); }
+            });
 
             cPing = new ToolStripMenuItem("", null, (s, e) => HostActions.Ping(H()));
             cTracert = new ToolStripMenuItem("", null, (s, e) => HostActions.Tracert(H()));
@@ -429,7 +437,7 @@ namespace Vihor
             ctx.Items.AddRange(new ToolStripItem[]
             {
                 cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore, new ToolStripSeparator(),
-                cCopy, cTools, new ToolStripSeparator(), cRescan, cAdvancedRescan, cExpandAll, cCollapseAll
+                cCopy, cNote, cTools, new ToolStripSeparator(), cRescan, cAdvancedRescan, cExpandAll, cCollapseAll
             });
             ctx.Items.Insert(0, cOpenServiceSep);
             ctx.Items.Insert(0, cOpenService);
@@ -526,6 +534,7 @@ namespace Vihor
             list.Columns[ColWorkgroup].Text = Lang.T("col.workgroup");
             list.Columns[ColServices].Text = Lang.T("col.services");
             list.Columns[ColPing].Text = Lang.T("col.ping");
+            list.Columns[ColNote].Text = Lang.T("col.note");
 
             cCopy.Text = Lang.T("ctx.copy");
             cCopyIp.Text = Lang.T("col.ip");
@@ -548,6 +557,7 @@ namespace Vihor
             cRestart.Text = Lang.T("ctx.restart");
             cAbort.Text = Lang.T("ctx.abort_shutdown");
             cRescan.Text = Lang.T("ctx.rescan");
+            cNote.Text = Lang.T("ctx.note");
             cAdvancedRescan.Text = Lang.T("ctx.advanced_rescan");
             btnClearFilter.ToolTipText = Lang.T("tip.clear_filter");
             cExpandAll.Text = Lang.T("ctx.expand_all");
@@ -797,6 +807,7 @@ namespace Vihor
                     h.Vendor.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     h.MacText.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     h.Workgroup.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    Notes.Get(h).IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     h.ServicesText.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     (h.IsNew && filter.Equals(Lang.T("filter.new"), StringComparison.OrdinalIgnoreCase)) ||
                     (h.IsMissing && filter.Equals(Lang.T("filter.missing"), StringComparison.OrdinalIgnoreCase)));
@@ -819,6 +830,7 @@ namespace Vihor
                 item.SubItems.Add(h.MacText);
                 item.SubItems.Add(h.Workgroup);
                 item.SubItems.Add(h.IsMissing ? Lang.T("tip.missing_short") : h.ServicesText);
+                item.SubItems.Add(Notes.Get(h));
                 item.SubItems.Add(h.IsMissing || h.PingMs < 0 ? "-" : h.PingMs == 0 ? "<1" : h.PingMs.ToString());
                 if (h.IsMissing)
                 {
@@ -863,6 +875,7 @@ namespace Vihor
                 ColMac => h => h.MacText,
                 ColWorkgroup => h => string.IsNullOrEmpty(h.Workgroup) ? "￿" : h.Workgroup.ToLowerInvariant(),
                 ColServices => h => (int)h.Services,
+                ColNote => h => Notes.Get(h) is var n && n.Length > 0 ? n.ToLowerInvariant() : "￿",
                 ColPing => h => h.PingMs < 0 ? long.MaxValue : h.PingMs,
                 _ => h => h.Ip,
             };
@@ -1010,14 +1023,14 @@ namespace Vihor
 
         private void DoExport(bool html)
         {
-            if (hosts.Count == 0) { MessageBox.Show(Lang.T("msg.nothing_to_export"), AppInfo.Name); return; }
+            if (hosts.Count == 0 && missing.Count == 0) { MessageBox.Show(Lang.T("msg.nothing_to_export"), AppInfo.Name); return; }
             using var dlg = new SaveFileDialog
             {
                 Filter = html ? "HTML (*.html)|*.html" : "CSV (*.csv)|*.csv",
                 FileName = $"vihor-scan-{DateTime.Now:yyyyMMdd-HHmm}" + (html ? ".html" : ".csv")
             };
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
-            var rows = Sort(hosts).ToList();
+            var rows = Sort(hosts.Concat(missing)).ToList(); // includes devices missing since the last scan (Status column)
             try
             {
                 if (html) Export.Html(dlg.FileName, rows, lastScannedRange);

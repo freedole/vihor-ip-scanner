@@ -61,6 +61,16 @@ scoop install vihor
 > Until code signing is in place, the installer and ZIP from GitHub/SourceForge may trigger Windows SmartScreen: *"Windows protected your PC"*.
 > Click **More info → Run anyway**. You can verify the file against the published SHA-256 checksum and review the source code here.
 
+## Command line
+
+For scheduled inventories (Task Scheduler), Vihor can scan without a window:
+
+```
+VihorIPScanner.exe /scan 192.168.1.1-254 /export C:\Reports\lan.csv [/speed 1-5] [/ranges]
+```
+
+The export (CSV or HTML, by file extension) includes notes and a Status column with devices that are new or missing since the previous scan of the same range.
+
 ## Keyboard shortcuts
 
 | Key | Action |

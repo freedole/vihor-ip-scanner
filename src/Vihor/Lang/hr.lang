@@ -142,3 +142,22 @@ warn.ranges=Rasponi sadrže {0} portova.\n\nSkeniranje će trajati dulje, a na p
 warn.dont_show=Ne prikazuj više
 btn.continue=Nastavi
 status.rescan_progress=Ponovno skeniranje {0} · provjereno portova: {1} / {2} · {3} s
+
+# 0.5
+col.note=Bilješka
+col.status=Status
+ctx.note=Bilješka…
+note.title=Bilješka - {0}
+note.prompt=Vaša bilješka za ovaj uređaj (npr. "Ricoh, 2. kat, ured 12"). Pamti se prema MAC adresi i prikazuje pri svakom skeniranju. Ostavite prazno za brisanje.
+status.new=novi
+status.missing=nestao
+opt.ssh_client=SSH klijent
+opt.ssh_auto=Automatski (Windows Terminal, PuTTY, naredbeni redak)
+opt.ssh_cmd=Naredbeni redak (ssh)
+opt.not_installed=nije instaliran
+cli.unknown=Nepoznata opcija: {0}
+cli.saved=Spremljeno: {0}
+cli.help_scan=IP raspon, npr. 192.168.1.1-254 ili 10.0.0.0/24
+cli.help_export=spremi rezultat kao CSV ili HTML (prema nastavku datoteke)
+cli.help_speed=1 = najbrže … 5 = najtemeljitije (zadano: kao u Mogućnostima)
+cli.help_ranges=provjeri i raspone portova iz Mogućnosti

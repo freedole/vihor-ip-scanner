@@ -143,3 +143,22 @@ warn.ranges=The port ranges contain {0} ports.\n\nScanning will take longer, and
 warn.dont_show=Don't show this again
 btn.continue=Continue
 status.rescan_progress=Rescanning {0} · {1} / {2} ports checked · {3} s
+
+# 0.5
+col.note=Note
+col.status=Status
+ctx.note=Note…
+note.title=Note - {0}
+note.prompt=Your note for this device (e.g. "Ricoh, 2nd floor, office 12"). It is remembered by MAC address and shown in every scan. Leave empty to delete.
+status.new=new
+status.missing=missing
+opt.ssh_client=SSH client
+opt.ssh_auto=Automatic (Windows Terminal, PuTTY, command prompt)
+opt.ssh_cmd=Command prompt (ssh)
+opt.not_installed=not installed
+cli.unknown=Unknown option: {0}
+cli.saved=Saved: {0}
+cli.help_scan=IP range, e.g. 192.168.1.1-254 or 10.0.0.0/24
+cli.help_export=save the result as CSV or HTML (by file extension)
+cli.help_speed=1 = fastest … 5 = most thorough (default: as in Options)
+cli.help_ranges=also check the port ranges from Options

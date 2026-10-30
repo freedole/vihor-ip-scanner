@@ -41,6 +41,9 @@ namespace Vihor
 
         public static bool ShowWorkgroup = true;
 
+        /// <summary>"auto" (Windows Terminal, then PuTTY, then cmd), "wt", "putty" or "cmd".</summary>
+        public static string SshClient = "auto";
+
         /// <summary>"system", "light" or "dark".</summary>
         public static string Theme = "system";
         public static int WindowWidth = 1100;
@@ -70,6 +73,7 @@ namespace Vihor
             RangesOnlyRescan = GetInt(d, "RangesOnlyRescan", 1) != 0;
             HideRangeWarning = GetInt(d, "HideRangeWarning", 0) != 0;
             ShowWorkgroup = GetInt(d, "ShowWorkgroup", 1) != 0;
+            if (d.TryGetValue("SshClient", out var ssh) && (ssh == "auto" || ssh == "wt" || ssh == "putty" || ssh == "cmd")) SshClient = ssh;
             if (d.TryGetValue("Theme", out var th) && (th == "light" || th == "dark" || th == "system")) Theme = th;
             WindowWidth = Clamp(GetInt(d, "WindowWidth", WindowWidth), 600, 10000);
             WindowHeight = Clamp(GetInt(d, "WindowHeight", WindowHeight), 400, 10000);
@@ -93,6 +97,7 @@ namespace Vihor
                 sb.AppendLine("RangesOnlyRescan=" + (RangesOnlyRescan ? 1 : 0));
                 sb.AppendLine("HideRangeWarning=" + (HideRangeWarning ? 1 : 0));
                 sb.AppendLine("ShowWorkgroup=" + (ShowWorkgroup ? 1 : 0));
+                sb.AppendLine("SshClient=" + SshClient);
                 sb.AppendLine("Theme=" + Theme);
                 sb.AppendLine("WindowWidth=" + WindowWidth);
                 sb.AppendLine("WindowHeight=" + WindowHeight);

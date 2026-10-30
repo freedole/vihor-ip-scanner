@@ -33,7 +33,7 @@ namespace Vihor.Scanning
                 var web = await Task.Run(() => Web(ip, new PortDef(Service.Custom, port, scheme.ToUpperInvariant(), scheme), timeoutMs)).ConfigureAwait(false);
                 if (web.Responded) return web;
             }
-            return await BannerAsync(ip, new PortDef(Service.Custom, port, "TCP"), timeoutMs).ConfigureAwait(false);
+            return await BannerAsync(ip, new PortDef(Service.Custom, port, WellKnownPorts.Name(port) ?? "TCP"), timeoutMs).ConfigureAwait(false);
         }
 
         private static ServiceDetail Web(IPAddress ip, PortDef def, int timeoutMs)
