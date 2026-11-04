@@ -21,7 +21,15 @@ namespace Vihor
         public static int Speed = 3;
 
         /// <summary>Known service ports that are checked (see HostInfo.Ports).</summary>
-        public static readonly int[] DefaultServicePorts = { 80, 443, 3389, 445, 22, 21, 9100 };
+        public static readonly int[] DefaultServicePorts =
+        {
+            80, 443, 3389, 445, 22, 21, 9100,
+            // admin / homelab web interfaces (0.6): Proxmox, Portainer, Synology, UniFi, Omada, Webmin, Cockpit, …
+            8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291,
+        };
+        /// <summary>Defaults added in 0.6; switched on once for settings saved by older versions.</summary>
+        private static readonly int[] AddedIn06 = { 8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291 };
+        private const int CurrentServiceSet = 2;
         public static List<int> ServicePorts = new List<int>(DefaultServicePorts); // must come after DefaultServicePorts
 
         /// <summary>Extra TCP ports chosen by the user, e.g. 8123 (Home Assistant).</summary>
@@ -65,7 +73,12 @@ namespace Vihor
             if (d.TryGetValue("LastRange", out var r)) LastRange = r;
             ScanPorts = GetInt(d, "ScanPorts", ScanPorts ? 1 : 0) != 0;
             Speed = Clamp(GetInt(d, "Speed", Speed), 1, 5);
-            if (d.TryGetValue("ServicePorts", out var sp)) ServicePorts = ParsePorts(sp);
+            if (d.TryGetValue("ServicePorts", out var sp))
+            {
+                ServicePorts = ParsePorts(sp);
+                if (GetInt(d, "ServiceSet", 1) < CurrentServiceSet)
+                    foreach (var p in AddedIn06) if (!ServicePorts.Contains(p)) ServicePorts.Add(p);
+            }
             else if (GetInt(d, "ExtendedPorts", 0) != 0) // 0.3.x "extended" setting -> all known services
                 ServicePorts = Scanning.HostInfo.Ports.Select(p => p.Port).ToList();
             if (d.TryGetValue("CustomPorts", out var cp)) CustomPorts = ParsePorts(cp);
@@ -92,6 +105,7 @@ namespace Vihor
                 sb.AppendLine("ScanPorts=" + (ScanPorts ? 1 : 0));
                 sb.AppendLine("Speed=" + Speed);
                 sb.AppendLine("ServicePorts=" + string.Join(",", ServicePorts));
+                sb.AppendLine("ServiceSet=" + CurrentServiceSet);
                 sb.AppendLine("CustomPorts=" + string.Join(",", CustomPorts));
                 sb.AppendLine("PortRanges=" + PortRanges);
                 sb.AppendLine("RangesOnlyRescan=" + (RangesOnlyRescan ? 1 : 0));

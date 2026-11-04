@@ -80,7 +80,7 @@ namespace Vihor
             services.IntegralHeight = false;
             services.BorderStyle = BorderStyle.FixedSingle;
             services.Width = w;
-            services.Height = LogicalToDeviceUnits(150);
+            services.Height = LogicalToDeviceUnits(220);
             foreach (var p in HostInfo.Ports)
                 services.Items.Add(new ServiceItem(p), start.ServicePorts.Contains(p.Port));
             root.Controls.Add(services);

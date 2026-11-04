@@ -19,7 +19,7 @@ namespace Vihor.Scanning
             if (def.IsWeb) return Task.Run(() => Web(ip, def, timeoutMs));
             if (def.Svc == Service.Ssh || def.Svc == Service.Ftp || def.Svc == Service.Vnc)
                 return BannerAsync(ip, def, timeoutMs);
-            return Task.FromResult(new ServiceDetail { Def = def });
+            return Task.FromResult(new ServiceDetail { Def = def, Product = Products.FromPort(def.Svc) });
         }
 
         /// <summary>
@@ -63,13 +63,14 @@ namespace Vihor.Scanning
                     d.Responded = true;
                     d.Server = Clean(resp.Headers["Server"], 40);
                     using var s = resp.GetResponseStream();
-                    if (s == null) return d;
+                    if (s == null) { d.Product = Products.FromWeb("", d.Server, ""); return d; }
                     var buf = new byte[65536];
                     int total = 0, n;
                     while (total < buf.Length && (n = s.Read(buf, total, buf.Length - total)) > 0) total += n;
                     var html = Encoding.UTF8.GetString(buf, 0, total);
                     var m = TitleRx.Match(html);
                     if (m.Success) d.Title = Clean(WebUtility.HtmlDecode(m.Groups[1].Value), 70);
+                    d.Product = Products.FromWeb(d.Title, d.Server, html);
                 }
             }
             catch { /* port open but no usable HTTP answer */ }

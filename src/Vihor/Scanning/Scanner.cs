@@ -222,13 +222,18 @@ namespace Vihor.Scanning
             // 2) Services: one port at a time per host, globally limited, with a short pause in between
             if (opt.ScanPorts && !ct.IsCancellationRequested)
             {
-                foreach (var p in HostInfo.Ports)
+                int drops = 0; // closed ports that never answer = a firewall that drops packets (e.g. Windows)
+                foreach (var p in HostInfo.Ports.OrderBy(p => p.Extra ? 1 : 0))
                 {
                     if (ct.IsCancellationRequested) break;
                     if (!opt.ServicePorts.Contains(p.Port)) continue;
-                    var state = await CheckPortAsync(addr, p.Port).ConfigureAwait(false);
+                    // On the LAN an open port answers within milliseconds; on hosts that drop packets
+                    // the admin/homelab ports get a short timeout, so they do not slow the scan down.
+                    int timeout = p.Extra && drops >= 2 ? Math.Min(opt.PortTimeoutMs, 250) : opt.PortTimeoutMs;
+                    var state = await CheckPortAsync(addr, p.Port, timeout).ConfigureAwait(false);
                     PortChecked?.Invoke();
                     Diag.Host(ip, $"tcp/{p.Port,-5} {state}");
+                    if (state == "timeout" && !p.Extra) drops++;
                     if (state == "open") host.Services |= p.Svc;
                     if (opt.PortGapMs > 0) await Task.Delay(opt.PortGapMs).ConfigureAwait(false);
                 }
@@ -345,14 +350,14 @@ namespace Vihor.Scanning
         }
 
         /// <summary>TCP connect check. Returns "open", "closed" (RST), "timeout" or "error: …".</summary>
-        private async Task<string> CheckPortAsync(IPAddress addr, int port)
+        private async Task<string> CheckPortAsync(IPAddress addr, int port, int timeoutMs = 0)
         {
             await tcpGate.WaitAsync().ConfigureAwait(false);
             var c = new TcpClient(AddressFamily.InterNetwork);
             try
             {
                 var t = c.ConnectAsync(addr, port);
-                var done = await Task.WhenAny(t, Task.Delay(opt.PortTimeoutMs)).ConfigureAwait(false);
+                var done = await Task.WhenAny(t, Task.Delay(timeoutMs > 0 ? timeoutMs : opt.PortTimeoutMs)).ConfigureAwait(false);
                 if (done != t) { _ = t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted); return "timeout"; }
                 await t.ConfigureAwait(false);
                 return c.Connected ? "open" : "closed";
