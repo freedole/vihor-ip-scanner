@@ -6,7 +6,12 @@
   "notes": "Vihor IP Scanner by cyber-security.ba",
   "url": "https://github.com/freedole/vihor-ip-scanner/releases/download/v0.5.0/VihorIPScanner-Portable-0.5.0.zip",
   "hash": "f7f327fad2c45d55b11a816681359e80ad539f6b525e1c72d7ae4fd0f9d848f7",
-  "bin": "VihorIPScanner.exe",
+  "bin": [
+    [
+      "VihorIPScanner.exe",
+      "vihor"
+    ]
+  ],
   "shortcuts": [
     [
       "VihorIPScanner.exe",

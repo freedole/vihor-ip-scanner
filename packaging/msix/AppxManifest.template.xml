@@ -44,10 +44,10 @@
         <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#0D1B34" />
       </uap:VisualElements>
       <Extensions>
-        <!-- "VihorIPScanner /scan ..." from any console (command line mode) -->
+        <!-- "vihor /scan ..." from any console (command line mode) -->
         <uap5:Extension Category="windows.appExecutionAlias" Executable="VihorIPScanner.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:AppExecutionAlias>
-            <uap5:ExecutionAlias Alias="VihorIPScanner.exe" />
+            <uap5:ExecutionAlias Alias="vihor.exe" />
           </uap5:AppExecutionAlias>
         </uap5:Extension>
       </Extensions>

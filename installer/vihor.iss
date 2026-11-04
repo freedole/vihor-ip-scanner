@@ -31,7 +31,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 DisableReadyPage=no
 PrivilegesRequired=admin
-; {app} is added to the system PATH, so "VihorIPScanner /scan ..." works in any console
+; task "addpath": {app} is added to the system PATH, so "vihor /scan ..." works in any console
 ChangesEnvironment=yes
 ArchitecturesAllowed=x86compatible x64compatible arm64
 ArchitecturesInstallIn64BitMode=x64compatible arm64
@@ -107,15 +107,21 @@ FirewallTask=Allow Vihor IP Scanner through Windows Firewall (needed to read dev
 serbianlatin.FirewallTask=Dozvoli Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja preko NetBIOS-a)
 croatian.FirewallTask=Dopusti Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja putem NetBIOS-a)
 bosnian.FirewallTask=Dozvoli Vihor IP Scanner kroz Windows Firewall (potrebno za čitanje imena uređaja preko NetBIOS-a)
+PathTask=Add Vihor to PATH (the "vihor" command in any console)
+serbianlatin.PathTask=Dodaj Vihor u PATH (komanda "vihor" u bilo kojoj konzoli)
+croatian.PathTask=Dodaj Vihor u PATH (naredba "vihor" u bilo kojoj konzoli)
+bosnian.PathTask=Dodaj Vihor u PATH (komanda "vihor" u bilo kojoj konzoli)
 bosnian.NetMissing=Vihor IP Scanner zahtijeva Microsoft .NET Framework 4.8, koji nije instaliran na ovom računaru.%n%nOtvoriti stranicu za preuzimanje?
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "firewall"; Description: "{cm:FirewallTask}"
+Name: "addpath"; Description: "{cm:PathTask}"
 
 [Files]
 Source: "{#BinDir}\{#AppExe}";        DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\{#AppExe}.config"; DestDir: "{app}"; Flags: ignoreversion
+Source: "vihor.cmd";                  DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE";                 DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [INI]
@@ -133,7 +139,7 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""V
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
-Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}'))
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addpath; Check: NeedsAddPath(ExpandConstant('{app}'))
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Vihor IP Scanner"""; Flags: runhidden waituntilterminated; RunOnceId: "VihorFirewallRule"

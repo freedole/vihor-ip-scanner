@@ -11,7 +11,7 @@ namespace Vihor
 {
     /// <summary>
     /// Command line mode, e.g. for Task Scheduler:
-    ///   VihorIPScanner.exe /scan 192.168.1.1-254 /export C:\Reports\lan.csv [/speed 1-5] [/ranges]
+    ///   vihor /scan 192.168.1.1-254 /export C:\Reports\lan.csv [/speed 1-5] [/ranges]
     /// Uses the services and ports from Options. Compares with the previous scan of the same range
     /// (Status column: new / missing) and remembers this one, just like the window.
     /// </summary>
@@ -106,14 +106,14 @@ namespace Vihor
         {
             Console.WriteLine($"{AppInfo.Name} {AppInfo.Version}");
             Console.WriteLine();
-            Console.WriteLine("  VihorIPScanner.exe /scan <range> [/export <file.csv|file.html>] [/speed 1-5] [/ranges]");
+            Console.WriteLine("  vihor /scan <range> [/export <file.csv|file.html>] [/speed 1-5] [/ranges]");
             Console.WriteLine();
             Console.WriteLine("  /scan    " + Lang.T("cli.help_scan"));
             Console.WriteLine("  /export  " + Lang.T("cli.help_export"));
             Console.WriteLine("  /speed   " + Lang.T("cli.help_speed"));
             Console.WriteLine("  /ranges  " + Lang.T("cli.help_ranges"));
             Console.WriteLine();
-            Console.WriteLine("  VihorIPScanner.exe /scan 192.168.1.1-254 /export C:\\Reports\\lan.csv");
+            Console.WriteLine("  vihor /scan 192.168.1.1-254 /export C:\\Reports\\lan.csv");
         }
     }
 }
