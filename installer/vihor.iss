@@ -31,6 +31,8 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 DisableReadyPage=no
 PrivilegesRequired=admin
+; {app} is added to the system PATH, so "VihorIPScanner /scan ..." works in any console
+ChangesEnvironment=yes
 ArchitecturesAllowed=x86compatible x64compatible arm64
 ArchitecturesInstallIn64BitMode=x64compatible arm64
 MinVersion=6.1sp1
@@ -130,6 +132,9 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Vihor IP Scanner"" dir=in action=allow program=""{app}\{#AppExe}"" enable=yes profile=any"; Flags: runhidden waituntilterminated; Tasks: firewall
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}'))
+
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Vihor IP Scanner"""; Flags: runhidden waituntilterminated; RunOnceId: "VihorFirewallRule"
 
@@ -156,4 +161,35 @@ begin
       ShellExec('open', 'https://dotnet.microsoft.com/download/dotnet-framework/net48', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     Result := False;
   end;
+end;
+
+const
+  EnvKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+
+function NeedsAddPath(Dir: string): Boolean;
+var
+  Path: string;
+begin
+  if not RegQueryStringValue(HKLM, EnvKey, 'Path', Path) then
+  begin
+    Result := True;
+    exit;
+  end;
+  Result := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Path) + ';') = 0;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Path, Dir: string;
+  P: Integer;
+begin
+  if CurUninstallStep <> usPostUninstall then exit;
+  if not RegQueryStringValue(HKLM, EnvKey, 'Path', Path) then exit;
+  Dir := ExpandConstant('{app}');
+  P := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Path) + ';');
+  if P = 0 then exit;
+  // P points into ';' + Path + ';' : remove "Dir;" (or ";Dir" at the end)
+  Delete(Path, P, Length(Dir) + 1);
+  if (Length(Path) > 0) and (Path[Length(Path)] = ';') then Delete(Path, Length(Path), 1);
+  RegWriteExpandStringValue(HKLM, EnvKey, 'Path', Path);
 end;

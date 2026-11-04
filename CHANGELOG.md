@@ -5,6 +5,7 @@
 - Recognises common admin and homelab systems out of the box and shows them by name in the Services column: Proxmox VE and Proxmox Backup, Portainer, TrueNAS, Synology DSM, QNAP, Unraid, OpenMediaVault, OPNsense, pfSense, UniFi, Omada, MikroTik, VMware ESXi / vCenter, Dell iDRAC, HPE iLO, Grafana, Zabbix, Webmin, Cockpit, Home Assistant, Pi-hole, Nextcloud and more. Only the page title, Server header and start of the page are used; nothing extra is sent.
 - The normal scan now also checks the usual admin web ports: 8006, 8007 (Proxmox), 9443, 9000 (Portainer), 5000, 5001 (Synology), 8080, 8443 (UniFi and others), 8043 (Omada), 10000 (Webmin), 9090 (Cockpit), 3000 (Grafana), 8123 (Home Assistant) and 8291 (MikroTik Winbox). Existing settings get them switched on once.
 - New optional services in Options: MS SQL Server (1433), MySQL / MariaDB (3306), PostgreSQL (5432).
+- The command line works from any console without the full path: the installer adds Vihor to PATH (removed again on uninstall), the Microsoft Store version gets the `VihorIPScanner` command alias.
 - Hosts behind a firewall that drops packets (e.g. Windows) get a short timeout for the extra ports, so the scan stays fast.
 
 ## 0.5.0 - 2026-10-30
