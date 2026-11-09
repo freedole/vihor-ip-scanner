@@ -420,13 +420,31 @@ namespace Vihor
                 var r = Rectangle.Inflate(e.Bounds, -LogicalToDeviceUnits(5), 0);
                 TextRenderer.DrawText(e.Graphics, e.Header.Text, list.Font, r, Theme.Fore, flags);
             };
-            list.DrawItem += (s, e) => e.DrawDefault = !(e.Item.Tag is ServiceRow);
+            // Every row is drawn by Vihor itself: the same readable selection in the light and dark theme
+            list.DrawItem += (s, e) =>
+            {
+                e.DrawDefault = false;
+                if (e.Item.Tag is ServiceRow) return;
+                using var b = new SolidBrush(RowBack(e.Item));
+                e.Graphics.FillRectangle(b, e.Bounds);
+            };
             list.DrawSubItem += (s, e) =>
             {
-                if (e.Item.Tag is ServiceRow sr) DrawServiceRow(e.Graphics, e.Item, sr);
+                if (e.Item.Tag is ServiceRow sr) { if (e.ColumnIndex == 0) DrawServiceRow(e.Graphics, e.Item, sr); }
                 else if (e.ColumnIndex == ColType && e.Item.Tag is HostInfo th) DrawTypeCell(e, th);
-                else e.DrawDefault = true;
+                else DrawCell(e);
             };
+            list.MouseMove += (s, e) =>
+            {
+                int i = list.GetItemAt(e.X, e.Y)?.Index ?? -1;
+                if (i == hoverIndex) return;
+                InvalidateRow(hoverIndex);
+                hoverIndex = i;
+                InvalidateRow(hoverIndex);
+            };
+            list.MouseLeave += (s, e) => { InvalidateRow(hoverIndex); hoverIndex = -1; };
+            list.GotFocus += (s, e) => list.Invalidate();
+            list.LostFocus += (s, e) => list.Invalidate();
             list.MouseClick += (s, e) =>
             {
                 chevronClicked = false;
@@ -553,13 +571,61 @@ namespace Vihor
             return LogicalToDeviceUnits(24);
         }
 
+        private int hoverIndex = -1;
+
+        private void InvalidateRow(int i)
+        {
+            if (i >= 0 && i < list.Items.Count) try { list.Invalidate(list.Items[i].Bounds); } catch { }
+        }
+
+        /// <summary>Selected + focused: accent blue with white text; selected without focus: soft blue; hover: light tint.</summary>
+        private Color RowBack(ListViewItem item)
+        {
+            if (item.Selected)
+                return list.Focused ? (Theme.Dark ? Color.FromArgb(31, 95, 190) : Color.FromArgb(0, 103, 192))
+                                    : (Theme.Dark ? Color.FromArgb(44, 62, 92) : Color.FromArgb(204, 228, 247));
+            if (item.Index == hoverIndex) return Theme.Dark ? Color.FromArgb(42, 45, 51) : Color.FromArgb(229, 241, 251);
+            return list.BackColor;
+        }
+
+        private Color RowFore(ListViewItem item, Color normal) =>
+            item.Selected && list.Focused ? Color.White : normal;
+
+        /// <summary>Plain cell (also the Name column with its expand chevron and status dot).</summary>
+        private void DrawCell(DrawListViewSubItemEventArgs e)
+        {
+            var bounds = e.Bounds;
+            if (e.ColumnIndex == 0)
+            {
+                // Sub-item 0 reports the whole row; use the real first column
+                var label = list.GetItemRect(e.ItemIndex, ItemBoundsPortion.Label);
+                bounds = new Rectangle(label.Right - list.Columns[0].Width, bounds.Top, list.Columns[0].Width, bounds.Height);
+            }
+            if (bounds.Width <= 0) return;
+            using (var b = new SolidBrush(RowBack(e.Item))) e.Graphics.FillRectangle(b, bounds);
+            int x = bounds.Left + LogicalToDeviceUnits(6);
+            if (e.ColumnIndex == 0 && e.Item.ImageList != null && !string.IsNullOrEmpty(e.Item.ImageKey))
+            {
+                var icon = list.GetItemRect(e.ItemIndex, ItemBoundsPortion.Icon);
+                int idx = icons.Images.IndexOfKey(e.Item.ImageKey);
+                var gs = e.Graphics.Save();
+                e.Graphics.SetClip(bounds);
+                if (idx >= 0) icons.Draw(e.Graphics, icon.Left, bounds.Top + (bounds.Height - icons.ImageSize.Height) / 2, idx);
+                e.Graphics.Restore(gs);
+                x = icon.Left + icons.ImageSize.Width + LogicalToDeviceUnits(4);
+            }
+            var r = new Rectangle(x, bounds.Top, Math.Max(0, bounds.Right - x - LogicalToDeviceUnits(4)), bounds.Height);
+            var flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix |
+                        (list.Columns[e.ColumnIndex].TextAlign == HorizontalAlignment.Right ? TextFormatFlags.Right : TextFormatFlags.Left);
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, e.Item.Font ?? list.Font, r, RowFore(e.Item, e.Item.ForeColor), flags);
+        }
+
         /// <summary>Type column: device icon + name, and a warning sign when something needs attention.</summary>
         private void DrawTypeCell(DrawListViewSubItemEventArgs e, HostInfo h)
         {
             bool sel = e.Item.Selected;
-            var bg = sel ? (list.Focused ? SystemColors.Highlight : Theme.Hover) : list.BackColor;
-            var fg = sel && list.Focused ? SystemColors.HighlightText : e.Item.ForeColor;
-            using (var b = new SolidBrush(bg)) e.Graphics.FillRectangle(b, e.Bounds);
+            var fg = RowFore(e.Item, e.Item.ForeColor);
+            using (var b = new SolidBrush(RowBack(e.Item))) e.Graphics.FillRectangle(b, e.Bounds);
             if (e.Bounds.Width < 8) return;
             int x = e.Bounds.Left + LogicalToDeviceUnits(4);
             var t = h.Type;
@@ -575,7 +641,7 @@ namespace Vihor
             }
             var text = h.TypeText + (h.HasWarning ? "  ⚠" : "");
             var r = new Rectangle(x, e.Bounds.Top, Math.Max(0, e.Bounds.Right - x - 2), e.Bounds.Height);
-            TextRenderer.DrawText(e.Graphics, text, list.Font, r, h.HasWarning && !(sel && list.Focused) ? Theme.Warning : fg,
+            TextRenderer.DrawText(e.Graphics, text, e.Item.Font ?? list.Font, r, fg,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
@@ -1185,8 +1251,8 @@ namespace Vihor
         {
             var row = item.Bounds;
             bool sel = item.Selected;
-            var bg = sel ? (list.Focused ? SystemColors.Highlight : Theme.Hover) : list.BackColor;
-            var fg = sel && list.Focused ? SystemColors.HighlightText : Theme.Link;
+            var bg = RowBack(item);
+            var fg = RowFore(item, Theme.Link);
             using (var b = new SolidBrush(bg)) g.FillRectangle(b, row);
 
             var iconRect = list.GetItemRect(item.Index, ItemBoundsPortion.Icon);
