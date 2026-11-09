@@ -54,7 +54,7 @@ ctx.wol=Wake-on-LAN
 ctx.shutdown=Shut down remotely…
 ctx.restart=Restart remotely…
 ctx.abort_shutdown=Abort shutdown
-ctx.rescan=Rescan
+ctx.rescan=Rescan this device
 
 status.ready=Ready. Enter an IP range and press Scan (F5).
 status.scanning=Scanning… {0} / {1} addresses · {2} devices found
@@ -251,3 +251,4 @@ status.warnings={0} warning(s)
 tracert.start=Route to {0} (max. 30 hops)
 tracert.done=Destination reached.
 svcname.554=RTSP (IP cameras)
+ctx.rescan_many=Rescan selected devices ({0})

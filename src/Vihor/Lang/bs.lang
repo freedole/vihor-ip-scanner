@@ -53,7 +53,7 @@ ctx.wol=Wake-on-LAN (probudi)
 ctx.shutdown=Ugasi na daljinu…
 ctx.restart=Restartuj na daljinu…
 ctx.abort_shutdown=Otkaži gašenje
-ctx.rescan=Skeniraj ponovo
+ctx.rescan=Skeniraj ponovo ovaj uređaj
 
 status.ready=Spremno. Unesi IP opseg i pritisni Skeniraj (F5).
 status.scanning=Skeniranje… {0} / {1} adresa · pronađeno uređaja: {2}
@@ -250,3 +250,4 @@ status.warnings=upozorenja: {0}
 tracert.start=Putanja do {0} (najviše 30 skokova)
 tracert.done=Odredište dostignuto.
 svcname.554=RTSP (IP kamere)
+ctx.rescan_many=Skeniraj ponovo označene uređaje ({0})

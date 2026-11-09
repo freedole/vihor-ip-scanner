@@ -425,8 +425,12 @@ namespace Vihor
             {
                 e.DrawDefault = false;
                 if (e.Item.Tag is ServiceRow) return;
-                using var b = new SolidBrush(RowBack(e.Item));
-                e.Graphics.FillRectangle(b, e.Bounds);
+                // Each cell paints only itself (a partial redraw must never erase the other cells);
+                // here only the strip right of the last column
+                int used = list.Columns.Cast<ColumnHeader>().Sum(c => c.Width);
+                if (e.Bounds.Left + used < e.Bounds.Right)
+                    using (var b = new SolidBrush(RowBack(e.Item)))
+                        e.Graphics.FillRectangle(b, e.Bounds.Left + used, e.Bounds.Top, e.Bounds.Right - e.Bounds.Left - used, e.Bounds.Height);
             };
             list.DrawSubItem += (s, e) =>
             {
@@ -588,6 +592,14 @@ namespace Vihor
             return list.BackColor;
         }
 
+        /// <summary>Thin cell borders (right and bottom), so every value clearly belongs to its column and row.</summary>
+        private void GridLines(Graphics g, Rectangle r)
+        {
+            using var pen = new Pen(Theme.Dark ? Color.FromArgb(58, 61, 68) : Color.FromArgb(226, 229, 233));
+            g.DrawLine(pen, r.Right - 1, r.Top, r.Right - 1, r.Bottom - 1);
+            g.DrawLine(pen, r.Left, r.Bottom - 1, r.Right - 1, r.Bottom - 1);
+        }
+
         private Color RowFore(ListViewItem item, Color normal) =>
             item.Selected && list.Focused ? Color.White : normal;
 
@@ -603,6 +615,7 @@ namespace Vihor
             }
             if (bounds.Width <= 0) return;
             using (var b = new SolidBrush(RowBack(e.Item))) e.Graphics.FillRectangle(b, bounds);
+            GridLines(e.Graphics, bounds);
             int x = bounds.Left + LogicalToDeviceUnits(6);
             if (e.ColumnIndex == 0 && e.Item.ImageList != null && !string.IsNullOrEmpty(e.Item.ImageKey))
             {
@@ -626,6 +639,7 @@ namespace Vihor
             bool sel = e.Item.Selected;
             var fg = RowFore(e.Item, e.Item.ForeColor);
             using (var b = new SolidBrush(RowBack(e.Item))) e.Graphics.FillRectangle(b, e.Bounds);
+            GridLines(e.Graphics, e.Bounds);
             if (e.Bounds.Width < 8) return;
             int x = e.Bounds.Left + LogicalToDeviceUnits(4);
             var t = h.Type;
@@ -744,6 +758,7 @@ namespace Vihor
                 cFtp.Visible = h.Has(Service.Ftp);
                 cWol.Enabled = sel.Any(x => x.Mac != null);
                 cRescan.Enabled = !scanning && !rescanning;
+                cRescan.Text = sel.Count == 1 ? Lang.T("ctx.rescan") : Lang.T("ctx.rescan_many", sel.Count);
                 cAdvancedRescan.Enabled = !scanning && !rescanning && sel.Count == 1;
                 bool single = sel.Count == 1;
                 foreach (var i in new[] { cRdp, cSsh, cHttp, cHttps, cHttpAlt, cFtp, cExplore, cPing, cTracert, cShutdown, cRestart, cAbort })
