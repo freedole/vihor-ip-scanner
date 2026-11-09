@@ -5,7 +5,7 @@
 <h1 align="center">Vihor IP Scanner</h1>
 
 <p align="center">
-  Fast, free &amp; open-source network scanner for Windows — by <a href="https://cyber-security.ba">cyber-security.ba</a>
+  Fast, free &amp; open-source network scanner for Windows - by <a href="https://cyber-security.ba">cyber-security.ba</a>
 </p>
 
 <p align="center">
@@ -21,31 +21,44 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-0.3.2.png" width="760" alt="Vihor IP Scanner screenshot">
+  <img src="assets/screenshot-0.6.png" width="860" alt="Vihor IP Scanner screenshot">
 </p>
 
-> **Vihor** /ˈviː.hɔr/ — Slavic for *whirlwind*. Made in Bosnia and Herzegovina.
+> **Vihor** /ˈviː.hɔr/ - Slavic for *whirlwind*. Made in Bosnia and Herzegovina.
 
 ## Features
 
-- **Fast discovery** — parallel ICMP ping + ARP, so devices that block ping are found too
-- **Device details** — name (DNS / NetBIOS), IP, MAC address, manufacturer (offline IEEE OUI database), ping time
-- **Service detection** — HTTP/HTTPS (incl. 8080, 8443, Proxmox 8006) with page title and server, SSH/FTP/VNC banners, SMB, RDP, Telnet, printers (9100)
-- **Expandable rows** — click the arrow next to a device to list its services; double-click a service to open it
-- **One-click actions** — Remote Desktop, SSH, open in browser, shared folders (`\\IP`), FTP, ping, traceroute
-- **Wake-on-LAN** and remote shutdown / restart (with confirmation)
-- **Copy** IP, name, MAC, manufacturer or whole rows · **Export** to CSV (Excel-friendly) and HTML
-- **Flexible ranges** — `192.168.1.1-254`, `192.168.1.0/24`, `10.0.0.1-10.0.3.254`, comma-separated lists
-- **Languages** — English, Srpski, Hrvatski, Bosanski (installer in 40+ languages)
-- **Options** — scanning speed from fast to thorough, choose which services to detect, add your own TCP ports
-- **Scan comparison** — new devices since the last scan are highlighted, missing ones are listed in grey
-- **Dark theme** — follows Windows or can be set manually
-- **Lightweight** — ~1 MB, no admin rights needed to run, no telemetry, no ads, no internet connection required
+**Discovery**
+- **Fast** - parallel ICMP ping + ARP, so devices that block ping are found too
+- **Device details** - name (DNS / NetBIOS, with source), IP, MAC, manufacturer (offline IEEE OUI database), ping time
+- **Device type and OS** - this PC, gateway, router / firewall, hypervisor, virtual machine, NAS, server, computer, printer, camera, phone, IoT; OS from known systems, SSH banner and TTL
+- **Virtual machines named** - Proxmox, Hyper-V, VMware, VirtualBox, QEMU/KVM, Xen and Docker network cards are recognised by MAC prefix
+
+**Services**
+- **Admin systems out of the box** - Proxmox VE / Backup, Portainer, TrueNAS, Synology, QNAP, Unraid, OpenMediaVault, OPNsense, pfSense, UniFi, Omada, MikroTik, ESXi / vCenter, iDRAC, iLO, Grafana, Zabbix, Home Assistant, Pi-hole and more
+- **Web, SSH, RDP, SMB, FTP, VNC, Telnet, printers (9100), IP cameras (RTSP)**, databases (MS SQL, MySQL, PostgreSQL) - with page titles, server headers and banners
+- **HTTPS certificates** - issuer and expiry date
+
+**Warnings** (orange ⚠, filter with `⚠`)
+- the same MAC on two IPs, a possible IP conflict (ARP and NetBIOS disagree), HTTPS certificates that expire within 30 days
+
+**Tools**
+- **Toolbar for the selected device** - Web, RDP, SSH, shares, ping, traceroute, Wake-on-LAN, shut down / restart
+- **Built-in ping and traceroute** windows with loss and min / avg / max
+- **Double-click / Enter** opens what the device offers: admin panel, RDP, web page, SSH or shares
+- **Ctrl+K command palette**, **favorites** (saved ranges and devices), **notes** per device
+- **Scan comparison** - new devices highlighted, missing ones listed in grey
+- **Export** to CSV (Excel-friendly), HTML and JSON · **command line** for scheduled inventories
+
+**Comfort**
+- Columns can be shown / hidden and reordered (right-click the header); widths are remembered
+- Dark theme (follows Windows), icons-only toolbar, English, Srpski, Hrvatski, Bosanski
+- **Lightweight** - ~1 MB, no admin rights needed, no telemetry, no ads
 
 ## Download
 
 - **Microsoft Store** (recommended, no SmartScreen warning): [Vihor IP Scanner](https://apps.microsoft.com/detail/9NHGBPBZZLCN)
-- **Installer or portable ZIP:** [latest release](https://github.com/freedole/vihor-ip-scanner/releases/latest) — also mirrored on [SourceForge](https://sourceforge.net/projects/vihor-ip-scanner/)
+- **Installer or portable ZIP:** [latest release](https://github.com/freedole/vihor-ip-scanner/releases/latest) - also mirrored on [SourceForge](https://sourceforge.net/projects/vihor-ip-scanner/)
 
 Every release lists SHA-256 checksums in `SHA256SUMS.txt`.
 
@@ -74,7 +87,7 @@ The `vihor` command is available in any console after installing from the Micros
 | Option | Meaning |
 |---|---|
 | `/scan <range>` | IP range, e.g. `192.168.1.1-254` or `10.0.0.0/24` |
-| `/export <file>` | save the result as CSV or HTML (by file extension) |
+| `/export <file>` | save the result as CSV, HTML or JSON (by file extension) |
 | `/speed 1-5` | 1 = fastest … 5 = most thorough (default: as in Options) |
 | `/ranges` | also check the port ranges from Options |
 | `/?` | help |
@@ -90,9 +103,13 @@ Notes:
 |---|---|
 | `F5` | Start / stop scan |
 | `Esc` | Stop scan |
-| `Enter` / double-click | Default action (RDP → HTTPS → HTTP → shared folders → SSH → ping) |
-| `Ctrl+C` | Copy selected IP addresses |
+| `Enter` / double-click | Open the device: admin panel → RDP → web → SSH → shares → ping (on a service row: that service) |
+| `Ctrl+K` | All commands, device actions and favorites |
+| `Ctrl+R` | Rescan selected devices |
+| `Ctrl+C` / `Ctrl+Shift+C` | Copy selected IP addresses / whole rows |
 | `Ctrl+F` | Filter results |
+| `Ctrl++` / `Ctrl+-` | Expand / collapse all |
+| `→` / `←` | Expand / collapse the selected device |
 
 ## Building from source
 
@@ -129,7 +146,9 @@ Team roles:
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
-It only contacts the IP addresses the user chooses to scan, and opens web pages (cyber-security.ba, GitHub) only when the user clicks the corresponding menu item. There is no telemetry, no update check and no analytics.
+It only contacts the IP addresses the user chooses to scan, and opens web pages (cyber-security.ba, GitHub) only when the user clicks the corresponding menu item. There is no telemetry and no analytics.
+
+The installer and portable versions ask the public GitHub API at most once a day whether a newer release exists (`api.github.com/repos/freedole/vihor-ip-scanner/releases/latest`). Nothing about the user, the computer or the scan is sent, and nothing is downloaded automatically. The Microsoft Store version does not do this, because the Store handles updates. To turn the check off, set `CheckUpdates=0` in `%APPDATA%\Vihor\settings.ini`.
 
 ## License
 
