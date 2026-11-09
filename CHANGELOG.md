@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased (0.6)
+## 0.6.0 - 2026-11-09
 
+- New two-row toolbar with line icons: Scan, My network, Rescan, Favorites and Export on top; tools for the selected device below (Web, RDP, SSH, Shares, Ping, Tracert, Wake, Shut down / restart, Expand / Collapse, Copy). View → *Tools bar* and *Icons only*.
+- New columns **Type** (with icon: this PC, gateway, router/firewall, hypervisor, virtual machine, NAS, server, computer, printer, camera, phone, IoT, network device) and **OS** (from known systems, SSH banner and ping TTL).
+- Virtual network cards are named: Proxmox VM, Hyper-V VM, VMware VM, VirtualBox VM, QEMU/KVM VM, Xen VM, Docker container.
+- Warnings (⚠, orange): the same MAC on two IPs, a possible IP conflict (ARP and NetBIOS report different MACs) and HTTPS certificates that expire in less than 30 days. Type ⚠ in the filter to show only those.
+- HTTPS services show the certificate issuer and expiry date.
+- IP cameras: RTSP (554) checked by default, Hikvision / Dahua / Reolink / Axis recognised.
+- Built-in Ping (continuous, with min/avg/max and loss) and Tracert windows instead of a command prompt.
+- Favorites: save the current range or the selected devices and scan them with one click.
+- Ctrl+K: all commands, device actions and favorites, searchable by typing.
+- Double-click / Enter opens what the device offers: recognised admin panel, RDP, web page, SSH or shares.
+- Columns: right-click the header (or View → Columns) to show / hide; widths and order are remembered. Full device details in the row tooltip.
+- Export to JSON (also `vihor /scan … /export result.json`), with services and certificates.
+- Name source (DNS / NetBIOS) shown in the tooltip; private / random MAC addresses labelled clearly.
+- Installer and portable versions check GitHub once a day for a new version and show a link in the status bar (Help → Check for updates). The Store version updates through the Store.
 - Recognises common admin and homelab systems out of the box and shows them by name in the Services column: Proxmox VE and Proxmox Backup, Portainer, TrueNAS, Synology DSM, QNAP, Unraid, OpenMediaVault, OPNsense, pfSense, UniFi, Omada, MikroTik, VMware ESXi / vCenter, Dell iDRAC, HPE iLO, Grafana, Zabbix, Webmin, Cockpit, Home Assistant, Pi-hole, Nextcloud and more. Only the page title, Server header and start of the page are used; nothing extra is sent.
 - The normal scan now also checks the usual admin web ports: 8006, 8007 (Proxmox), 9443, 9000 (Portainer), 5000, 5001 (Synology), 8080, 8443 (UniFi and others), 8043 (Omada), 10000 (Webmin), 9090 (Cockpit), 3000 (Grafana), 8123 (Home Assistant) and 8291 (MikroTik Winbox). Existing settings get them switched on once.
 - New optional services in Options: MS SQL Server (1433), MySQL / MariaDB (3306), PostgreSQL (5432).

@@ -68,6 +68,7 @@ namespace Vihor
             var hosts = found.OrderBy(h => h.Ip).ToList();
             var history = ScanHistory.Load(range);
             foreach (var h in hosts) h.IsNew = history.IsNew(h);
+            Scanner.MarkSameMac(hosts);
             var missing = history.Missing(hosts);
             ScanHistory.Save(range, hosts);
 
@@ -92,6 +93,7 @@ namespace Vihor
                     var rows = hosts.Concat(missing).OrderBy(h => h.Ip).ToList();
                     if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
                         Export.Html(path, rows, range);
+                    else if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) Export.Json(path, rows, range);
                     else Export.Csv(path, rows);
                     Console.WriteLine(Lang.T("cli.saved", path));
                 }

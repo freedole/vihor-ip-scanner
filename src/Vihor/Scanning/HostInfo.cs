@@ -133,7 +133,7 @@ namespace Vihor.Scanning
         /// <summary>NetBIOS reported a different MAC than ARP: two devices may be using this IP.</summary>
         public byte[] ConflictMac;
         public string ConflictMacText => ConflictMac == null ? "" : BitConverter.ToString(ConflictMac).Replace('-', ':');
-        public bool HasWarning => SameMac.Count > 0 || ConflictMac != null || Details.Any(d => d.CertWarning);
+        public bool HasWarning => SameMac.Count == 1 || ConflictMac != null || Details.Any(d => d.CertWarning);
 
         public DeviceType Type => DeviceKind.Detect(this);
         public string TypeText => DeviceKind.Text(Type);
