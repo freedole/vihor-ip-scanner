@@ -15,7 +15,7 @@ namespace Vihor
     {
         public static bool Dark { get; private set; }
 
-        public static Color Back, Fore, Panel, Border, Muted, Link, NewHost, MissingHost, HeaderBack, Hover, Input;
+        public static Color Warning, Back, Fore, Panel, Border, Muted, Link, NewHost, MissingHost, HeaderBack, Hover, Input;
 
         public static void Resolve(string preference)
         {
@@ -33,6 +33,7 @@ namespace Vihor
                 Link = Color.FromArgb(110, 168, 254);
                 NewHost = Color.FromArgb(87, 200, 120);
                 MissingHost = Color.FromArgb(125, 129, 137);
+                Warning = Color.FromArgb(240, 160, 60);
             }
             else
             {
@@ -47,6 +48,7 @@ namespace Vihor
                 Link = Color.FromArgb(31, 111, 235);
                 NewHost = Color.FromArgb(26, 127, 55);
                 MissingHost = Color.FromArgb(140, 146, 154);
+                Warning = Color.FromArgb(196, 98, 0);
             }
         }
 

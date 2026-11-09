@@ -25,10 +25,10 @@ namespace Vihor
         {
             80, 443, 3389, 445, 22, 21, 9100,
             // admin / homelab web interfaces (0.6): Proxmox, Portainer, Synology, UniFi, Omada, Webmin, Cockpit, …
-            8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291,
+            8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291, 554,
         };
         /// <summary>Defaults added in 0.6; switched on once for settings saved by older versions.</summary>
-        private static readonly int[] AddedIn06 = { 8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291 };
+        private static readonly int[] AddedIn06 = { 8006, 8007, 8080, 8443, 9443, 9000, 5000, 5001, 10000, 9090, 8043, 3000, 8123, 8291, 554 };
         private const int CurrentServiceSet = 2;
         public static List<int> ServicePorts = new List<int>(DefaultServicePorts); // must come after DefaultServicePorts
 
@@ -54,6 +54,16 @@ namespace Vihor
 
         /// <summary>"system", "light" or "dark".</summary>
         public static string Theme = "system";
+
+        // 0.6: layout and extras
+        /// <summary>Saved ranges / devices: "name|range" entries.</summary>
+        public static List<string> Favorites = new List<string>();
+        /// <summary>Column widths by column id ("name=190,ip=115,…"), display order and hidden columns.</summary>
+        public static string ColumnWidths = "", ColumnOrder = "", HiddenColumns = "";
+        public static bool ShowToolsBar = true;
+        public static bool IconsOnly = false;
+        public static bool CheckUpdates = true;
+        public static string LastUpdateCheck = "";
         public static int WindowWidth = 1100;
         public static int WindowHeight = 650;
         public static bool WindowMaximized = false;
@@ -88,6 +98,14 @@ namespace Vihor
             ShowWorkgroup = GetInt(d, "ShowWorkgroup", 1) != 0;
             if (d.TryGetValue("SshClient", out var ssh) && (ssh == "auto" || ssh == "wt" || ssh == "putty" || ssh == "cmd")) SshClient = ssh;
             if (d.TryGetValue("Theme", out var th) && (th == "light" || th == "dark" || th == "system")) Theme = th;
+            Favorites = d.TryGetValue("Favorites", out var fav) ? fav.Split(new[] { "||" }, StringSplitOptions.RemoveEmptyEntries).ToList() : new List<string>();
+            if (d.TryGetValue("ColumnWidths", out var cw)) ColumnWidths = cw;
+            if (d.TryGetValue("ColumnOrder", out var co)) ColumnOrder = co;
+            if (d.TryGetValue("HiddenColumns", out var hc)) HiddenColumns = hc;
+            ShowToolsBar = GetInt(d, "ShowToolsBar", 1) != 0;
+            IconsOnly = GetInt(d, "IconsOnly", 0) != 0;
+            CheckUpdates = GetInt(d, "CheckUpdates", 1) != 0;
+            if (d.TryGetValue("LastUpdateCheck", out var lu)) LastUpdateCheck = lu;
             WindowWidth = Clamp(GetInt(d, "WindowWidth", WindowWidth), 600, 10000);
             WindowHeight = Clamp(GetInt(d, "WindowHeight", WindowHeight), 400, 10000);
             WindowMaximized = GetInt(d, "WindowMaximized", 0) != 0;
@@ -113,6 +131,14 @@ namespace Vihor
                 sb.AppendLine("ShowWorkgroup=" + (ShowWorkgroup ? 1 : 0));
                 sb.AppendLine("SshClient=" + SshClient);
                 sb.AppendLine("Theme=" + Theme);
+                sb.AppendLine("Favorites=" + string.Join("||", Favorites));
+                sb.AppendLine("ColumnWidths=" + ColumnWidths);
+                sb.AppendLine("ColumnOrder=" + ColumnOrder);
+                sb.AppendLine("HiddenColumns=" + HiddenColumns);
+                sb.AppendLine("ShowToolsBar=" + (ShowToolsBar ? 1 : 0));
+                sb.AppendLine("IconsOnly=" + (IconsOnly ? 1 : 0));
+                sb.AppendLine("CheckUpdates=" + (CheckUpdates ? 1 : 0));
+                sb.AppendLine("LastUpdateCheck=" + LastUpdateCheck);
                 sb.AppendLine("WindowWidth=" + WindowWidth);
                 sb.AppendLine("WindowHeight=" + WindowHeight);
                 sb.AppendLine("WindowMaximized=" + (WindowMaximized ? 1 : 0));

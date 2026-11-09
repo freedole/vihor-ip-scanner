@@ -63,6 +63,80 @@ namespace Vihor
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
         }
 
+        /// <summary>JSON for scripts: one object per device, with every detected service.</summary>
+        public static void Json(string path, IEnumerable<HostInfo> hosts, string range)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{\n  \"tool\": ").Append(J(AppInfo.Name + " " + AppInfo.Version))
+              .Append(",\n  \"range\": ").Append(J(range))
+              .Append(",\n  \"time\": ").Append(J(System.DateTime.Now.ToString("s")))
+              .Append(",\n  \"devices\": [");
+            bool first = true;
+            foreach (var h in hosts)
+            {
+                sb.Append(first ? "\n" : ",\n");
+                first = false;
+                sb.Append("    { \"ip\": ").Append(J(h.IpText))
+                  .Append(", \"name\": ").Append(J(h.Name))
+                  .Append(", \"nameSource\": ").Append(J(h.NameSource))
+                  .Append(", \"type\": ").Append(J(h.Type.ToString()))
+                  .Append(", \"os\": ").Append(J(h.Os))
+                  .Append(", \"mac\": ").Append(J(h.MacText))
+                  .Append(", \"vendor\": ").Append(J(h.Vendor))
+                  .Append(", \"workgroup\": ").Append(J(h.Workgroup))
+                  .Append(", \"pingMs\": ").Append(h.PingMs < 0 ? "null" : h.PingMs.ToString(CultureInfo.InvariantCulture))
+                  .Append(", \"ttl\": ").Append(h.Ttl > 0 ? h.Ttl.ToString(CultureInfo.InvariantCulture) : "null")
+                  .Append(", \"status\": ").Append(J(h.IsMissing ? "missing" : h.IsNew ? "new" : ""))
+                  .Append(", \"self\": ").Append(h.IsSelf ? "true" : "false")
+                  .Append(", \"gateway\": ").Append(h.IsGateway ? "true" : "false")
+                  .Append(", \"note\": ").Append(J(Notes.Get(h)))
+                  .Append(", \"sameMacAs\": [");
+                sb.Append(string.Join(", ", h.SameMac.ConvertAll(ip => J(IpRange.ToStr(ip)))));
+                sb.Append("], \"conflictMac\": ").Append(h.ConflictMac == null ? "null" : J(h.ConflictMacText));
+                sb.Append(", \"services\": [");
+                bool f2 = true;
+                foreach (var d in h.Details)
+                {
+                    sb.Append(f2 ? "" : ", ");
+                    f2 = false;
+                    sb.Append("{ \"port\": ").Append(d.Def.Port)
+                      .Append(", \"name\": ").Append(J(d.Def.Label))
+                      .Append(", \"product\": ").Append(J(d.Product))
+                      .Append(", \"title\": ").Append(J(d.Title))
+                      .Append(", \"server\": ").Append(J(d.Server))
+                      .Append(", \"banner\": ").Append(J(d.Banner));
+                    if (d.CertExpires.HasValue)
+                        sb.Append(", \"certExpires\": ").Append(J(d.CertExpires.Value.ToString("yyyy-MM-dd")))
+                          .Append(", \"certIssuer\": ").Append(J(d.CertIssuer))
+                          .Append(", \"certSelfSigned\": ").Append(d.CertSelfSigned ? "true" : "false");
+                    sb.Append(" }");
+                }
+                sb.Append("] }");
+            }
+            sb.Append("\n  ]\n}\n");
+            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+        }
+
+        private static string J(string s)
+        {
+            var sb = new StringBuilder("\"");
+            foreach (var c in s ?? "")
+            {
+                switch (c)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4")); else sb.Append(c);
+                        break;
+                }
+            }
+            return sb.Append('"').ToString();
+        }
+
         private static IEnumerable<string> Quote(string[] values, string sep)
         {
             foreach (var v in values)

@@ -52,7 +52,23 @@ namespace Vihor.Scanning
                 req.Accept = "text/html,*/*";
                 req.Proxy = null;
                 // LAN devices almost always use self-signed certificates; we only read the title.
-                req.ServerCertificateValidationCallback = (s, c, ch, e) => true;
+                // The certificate is still read, to show its issuer and expiry date.
+                req.ServerCertificateValidationCallback = (s, c, ch, e) =>
+                {
+                    try
+                    {
+                        if (c != null && !d.CertExpires.HasValue)
+                        {
+                            var x = new System.Security.Cryptography.X509Certificates.X509Certificate2(c);
+                            d.CertExpires = x.NotAfter;
+                            d.CertSubject = Clean(x.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false), 50);
+                            d.CertIssuer = Clean(x.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, true), 50);
+                            d.CertSelfSigned = x.Subject == x.Issuer;
+                        }
+                    }
+                    catch { }
+                    return true;
+                };
 
                 HttpWebResponse resp;
                 try { resp = (HttpWebResponse)req.GetResponse(); }

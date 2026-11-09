@@ -43,6 +43,9 @@ namespace Vihor.Scanning
             if (mac == null || mac.Length < 6) return "";
             loadTask?.Wait();
 
+            var vm = DeviceKind.VirtualVendor(mac); // Proxmox, Hyper-V, VMware, Docker, … (before the random check: some are locally administered)
+            if (vm != null) return vm;
+
             // Locally administered / randomized MAC (e.g. phone "private Wi-Fi address")
             if ((mac[0] & 0x02) != 0) return Lang.T("vendor.random");
 

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Windows.Forms;
@@ -51,6 +52,14 @@ namespace Vihor
 
         public static void Http(HostInfo h, int port = 80) =>
             Start(port == 80 ? "http://" + h.IpText + "/" : $"http://{h.IpText}:{port}/", null);
+
+        /// <summary>Best web interface: a recognised admin panel first, then HTTPS, then HTTP.</summary>
+        public static void BestWeb(HostInfo h)
+        {
+            var web = h.Details.Where(d => d.Def.IsWeb).OrderBy(d => d.Product.Length > 0 ? 0 : d.Def.Port == 443 ? 1 : d.Def.Port == 80 ? 2 : 3).FirstOrDefault();
+            if (web != null) OpenService(h, web);
+            else Http(h);
+        }
 
         public static void Https(HostInfo h) => Start("https://" + h.IpText + "/", null);
 

@@ -35,6 +35,7 @@ namespace Vihor.Scanning
         MsSql = 1 << 24,
         MySql = 1 << 25,
         Postgres = 1 << 26,
+        Rtsp = 1 << 27,
     }
 
     internal sealed class PortDef
@@ -63,6 +64,27 @@ namespace Vihor.Scanning
         public string Banner = "";  // SSH / FTP / VNC greeting
         public string Product = ""; // recognised system, e.g. "Proxmox VE" (see Products)
         internal bool Responded;     // an HTTP(S) server answered (used for custom ports)
+        // TLS certificate of an HTTPS service (0.6)
+        public string CertSubject = "", CertIssuer = "";
+        public DateTime? CertExpires;
+        public bool CertSelfSigned;
+
+        /// <summary>Days until the certificate expires (negative = expired), or null.</summary>
+        public int? CertDaysLeft => CertExpires.HasValue ? (int)Math.Floor((CertExpires.Value - DateTime.Now).TotalDays) : (int?)null;
+        public bool CertWarning => CertDaysLeft.HasValue && CertDaysLeft.Value < 30;
+
+        public string CertText
+        {
+            get
+            {
+                if (!CertExpires.HasValue) return "";
+                int d = CertDaysLeft.Value;
+                var when = CertExpires.Value.ToString("yyyy-MM-dd");
+                var state = d < 0 ? Lang.T("cert.expired", when) : d < 30 ? Lang.T("cert.expires_soon", when, d) : Lang.T("cert.valid", when);
+                var issuer = CertSelfSigned ? Lang.T("cert.self_signed") : CertIssuer;
+                return issuer.Length > 0 ? $"{state} · {issuer}" : state;
+            }
+        }
 
         public string Text
         {
@@ -81,7 +103,9 @@ namespace Vihor.Scanning
                 }
                 if (Product.Length > 0 && info.IndexOf(Product, StringComparison.OrdinalIgnoreCase) < 0)
                     info = info.Length == 0 ? Product : $"{Product} · {info}";
-                return info.Length == 0 ? name : $"{name} — {info}";
+                var t = info.Length == 0 ? name : $"{name} — {info}";
+                if (CertWarning) t += "  ⚠ " + CertText;
+                return t;
             }
         }
     }
@@ -100,6 +124,20 @@ namespace Vihor.Scanning
         public List<ServiceDetail> Details = new List<ServiceDetail>();
         public bool IsSelf;
         public bool IsGateway;
+        /// <summary>TTL of the ping reply (OS hint), 0 = unknown.</summary>
+        public int Ttl;
+        /// <summary>Where the name came from: "DNS", "NetBIOS", "mDNS", "local".</summary>
+        public string NameSource = "";
+        /// <summary>Other IPs answering with the same MAC (router with several IPs, proxy ARP, or a misconfiguration).</summary>
+        public List<uint> SameMac = new List<uint>();
+        /// <summary>NetBIOS reported a different MAC than ARP: two devices may be using this IP.</summary>
+        public byte[] ConflictMac;
+        public string ConflictMacText => ConflictMac == null ? "" : BitConverter.ToString(ConflictMac).Replace('-', ':');
+        public bool HasWarning => SameMac.Count == 1 || ConflictMac != null || Details.Any(d => d.CertWarning);
+
+        public DeviceType Type => DeviceKind.Detect(this);
+        public string TypeText => DeviceKind.Text(Type);
+        public string Os => DeviceKind.Os(this);
 
         /// <summary>Open user-defined ports (Options → my ports).</summary>
         public List<int> CustomOpen = new List<int>();
@@ -140,6 +178,7 @@ namespace Vihor.Scanning
             new PortDef(Service.MsSql, 1433, "MS SQL", null, true),
             new PortDef(Service.MySql, 3306, "MySQL", null, true),
             new PortDef(Service.Postgres, 5432, "PostgreSQL", null, true),
+            new PortDef(Service.Rtsp, 554, "RTSP", null, true),
         };
 
         public string ServicesText
