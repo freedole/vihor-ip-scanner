@@ -176,7 +176,7 @@ namespace Vihor.Scanning
             var arpTask = local && self == null ? Task.Run(() => Native.ResolveMac(addr), ct) : Task.FromResult<byte[]>(null);
             await Task.WhenAll(pingTask, arpTask).ConfigureAwait(false);
 
-            long rtt = pingTask.Result;
+            long rtt = pingTask.Result.Rtt;
             byte[] mac = self != null ? self.Mac : arpTask.Result;
             bool alive = rtt >= 0 || mac != null || self != null;
             if (!alive || ct.IsCancellationRequested) return null;
@@ -186,6 +186,7 @@ namespace Vihor.Scanning
                 Ip = ip,
                 Alive = true,
                 PingMs = rtt,
+                Ttl = pingTask.Result.Ttl,
                 Mac = mac,
                 IsSelf = self != null,
                 IsGateway = gateways.Contains(ip),
@@ -212,10 +213,14 @@ namespace Vihor.Scanning
             await Task.WhenAll(dnsTask, nbTask).ConfigureAwait(false);
 
             var nb = nbTask.Result;
-            host.Name = !string.IsNullOrEmpty(dnsTask.Result) ? dnsTask.Result : nb?.ComputerName ?? "";
+            if (!string.IsNullOrEmpty(dnsTask.Result)) { host.Name = dnsTask.Result; host.NameSource = "DNS"; }
+            else if (!string.IsNullOrEmpty(nb?.ComputerName)) { host.Name = nb.ComputerName; host.NameSource = "NetBIOS"; }
             host.Workgroup = nb?.Workgroup ?? "";
             if (host.Mac == null && nb?.Mac != null) host.Mac = nb.Mac;
-            if (host.IsSelf && string.IsNullOrEmpty(host.Name)) host.Name = Environment.MachineName;
+            // NetBIOS answered with another MAC than ARP: a second device may be using this IP (IP conflict)
+            else if (host.Mac != null && nb?.Mac != null && nb.Mac.Length == 6 && !nb.Mac.All(b => b == 0) && !nb.Mac.SequenceEqual(host.Mac) && !host.IsSelf)
+                host.ConflictMac = nb.Mac;
+            if (host.IsSelf && string.IsNullOrEmpty(host.Name)) { host.Name = Environment.MachineName; host.NameSource = "local"; }
             host.Vendor = OuiDb.Lookup(host.Mac);
             Diag.Host(ip, $"names  dns={(string.IsNullOrEmpty(dnsTask.Result) ? "-" : dnsTask.Result)}  netbios={nb?.ComputerName ?? "-"}{(nb != null ? " (" + nb.Source + ")" : "")}");
 
@@ -285,7 +290,7 @@ namespace Vihor.Scanning
             return host;
         }
 
-        private async Task<long> PingAsync(IPAddress addr)
+        private async Task<(long Rtt, int Ttl)> PingAsync(IPAddress addr)
         {
             try
             {
@@ -294,14 +299,22 @@ namespace Vihor.Scanning
                 for (int i = 0; i < Math.Max(1, opt.PingAttempts); i++)
                 {
                     var r = await p.SendPingAsync(addr, opt.PingTimeoutMs).ConfigureAwait(false);
-                    if (r.Status == IPStatus.Success) return r.RoundtripTime;
+                    if (r.Status == IPStatus.Success) return (r.RoundtripTime, r.Options?.Ttl ?? 0);
                 }
-                return -1;
+                return (-1, 0);
             }
             catch
             {
-                return -1;
+                return (-1, 0);
             }
+        }
+
+        /// <summary>After a scan: mark devices that answer with the same MAC on several IPs.</summary>
+        public static void MarkSameMac(IList<HostInfo> hosts)
+        {
+            foreach (var h in hosts) h.SameMac.Clear();
+            foreach (var g in hosts.Where(h => h.Mac != null && !h.IsMissing).GroupBy(h => h.MacText).Where(g => g.Count() > 1))
+                foreach (var h in g) h.SameMac.AddRange(g.Where(x => x != h).Select(x => x.Ip));
         }
 
         private async Task<string> ReverseDnsAsync(IPAddress addr)
