@@ -21,7 +21,10 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot-0.6.png" width="860" alt="Vihor IP Scanner screenshot">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-0.6-dark.png">
+    <img src="assets/screenshot-0.6.png" width="860" alt="Vihor IP Scanner screenshot">
+  </picture>
 </p>
 
 > **Vihor** /ˈviː.hɔr/ - Slavic for *whirlwind*. Made in Bosnia and Herzegovina.
